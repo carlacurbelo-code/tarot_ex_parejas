@@ -9,7 +9,7 @@ import { useEffect, useMemo, useState } from "react";
 
 // ─── CONFIGURACIÓN ──────────────────────────────────────────────
 // Reemplazá este número con tu WhatsApp real (sin espacios ni guiones)
-const WHATSAPP_NUMBER = "59899000000";
+const WHATSAPP_NUMBER = "598992435293";
 const WHATSAPP_MESSAGE = encodeURIComponent(
   "Hola! Acabo de hacer mi lectura gratuita y quiero la lectura del ex + 3 preguntas."
 );
