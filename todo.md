@@ -84,3 +84,10 @@
 - [x] Mantener el modelo/proveedor/helper de IA actuales
 - [x] Verificar que CARD_TEXTS/meaning no se envíen al nuevo flujo IA de `/`
 - [x] Reportar literalmente el system prompt, datos enviados, pruebas manuales y modelo disponible
+
+## Ajuste puntual Bloque 1 — tono y extensión
+- [x] Modificar únicamente `SYSTEM_PROMPT`.
+- [x] Establecer 120–160 palabras, respuesta directa desde la primera frase y estructura breve.
+- [x] Eliminar claridad parcial, pregunta reflexiva obligatoria y espera deliberada.
+- [x] Ejecutar las mismas cinco preguntas, contar palabras y actualizar el reporte.
+- [x] Confirmar que ninguna otra funcionalidad fue modificada y detenerse.
