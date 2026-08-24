@@ -106,3 +106,14 @@
 - [x] Forzar temporalmente una tirada con al menos una carta invertida y comprobar giro visual, nombre, orientación y envío al LLM.
 - [x] Corregir solo el fallo confirmado de selección o representación de cartas, si existe, y restaurar el 30% aleatorio normal.
 - [x] Ejecutar TypeScript y Vitest, documentar hallazgos y detenerse sin avanzar de bloque.
+
+## Bloque 2 — tirada gratuita de 1 carta y lectura profunda de 3 cartas
+- [x] Auditar contratos, componentes y pruebas existentes sin modificar las bases aprobadas del Bloque 1.
+- [x] Agregar un prompt independiente y respuesta estructurada `reading + deepening_hook` para una carta en una única llamada al LLM.
+- [x] Crear el procedimiento de una carta que reciba pregunta, carta y orientación, sin modificar el procedimiento profundo de tres cartas.
+- [x] Adaptar Home a pregunta → una carta → lectura y hook → profundizar u otra pregunta → nueva tirada independiente de tres cartas.
+- [x] Conservar correctamente `originalQuestion`, `newQuestion` y `deepQuestion` según la opción elegida.
+- [x] Mantener el mazo de 78, el barajado, el 30% de invertidas, la rotación física y el prompt aprobado de tres cartas.
+- [x] Agregar pruebas automáticas de contrato, preguntas, independencia de tiradas y ausencia de arrastre de contexto.
+- [x] Ejecutar cinco pruebas manuales de una carta y tres flujos completos en la interfaz.
+- [x] Ejecutar TypeScript, build y Vitest; documentar resultados, límites y no cambios de pago o diseño; detenerse.

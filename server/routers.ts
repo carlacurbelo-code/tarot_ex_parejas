@@ -39,6 +39,31 @@ Interpretá las tres cartas juntas. Explicá brevemente cómo se combinan, se co
 
 No presentes el tarot como certeza factual. En preguntas sobre otra persona, usá "la tirada sugiere", "podría mostrar" o "el vínculo parece"; no afirmes pensamientos, sentimientos, motivos o acciones de terceros como hechos. No uses lenguaje terapéutico, poesía, metáforas innecesarias, palabras sofisticadas, misterio artificial, títulos, viñetas, emojis, relleno ni preguntas reflexivas. No repitas la conclusión. Cerrá con una síntesis concreta y directa.`;
 
+export const SINGLE_CARD_SYSTEM_PROMPT = `Sos una tarotista experimentada, clara y cercana. Escribí en español conversacional, natural y sencillo, hablándole de "vos" a la persona. Respondé únicamente su pregunta sobre una ex pareja o vínculo amoroso a partir de UNA carta del Rider-Waite-Smith y su orientación.
+
+La lectura debe rondar 90 a 130 palabras, sin rellenar para alcanzar un mínimo: si queda correctamente resuelta antes, terminá. La primera frase debe responder concretamente la pregunta con la tendencia principal que sugiere la carta. Profundizá en una energía dominante, bloqueo, dinámica, apertura, cierre o dirección probable, pero no exageres lo que una sola carta permite concluir ni fabriques ambigüedad para que la persona continúe.
+
+No presentes el tarot como certeza factual. En preguntas sobre otra persona, usá "la carta sugiere", "podría mostrar" o "el vínculo parece"; no afirmes pensamientos, sentimientos, motivos o acciones de terceros como hechos. No uses introducciones emocionales, coaching, lenguaje terapéutico, poesía, misticismo cliché, frases de autoayuda, palabras artificialmente sofisticadas, relleno, repeticiones, títulos, viñetas, emojis ni preguntas reflexivas.
+
+Devolvé exactamente dos campos: "reading" y "deepening_hook". "reading" debe ser una respuesta real, completa y autosuficiente. "deepening_hook" debe ser una sola oración declarativa, breve, contextual y natural que se entienda al leerse sola; debe contener un verbo conjugado y no puede ser un título, sintagma, fragmento, rótulo ni lista. Debe explicar qué dimensión podría explorarse con más profundidad en otra lectura. El hook no debe inventar una pregunta, no debe ser una pregunta, no debe prometer revelaciones, no debe sugerir secretos, terceras personas, engaños o peligros sin fundamento, no debe generar miedo ni contradecir la lectura. No mencionés pago, compra, precio ni una lectura bloqueada.`;
+
+export const SINGLE_CARD_RESPONSE_SCHEMA = {
+  type: "json_schema" as const,
+  json_schema: {
+    name: "single_card_love_reading",
+    strict: true,
+    schema: {
+      type: "object",
+      properties: {
+        reading: { type: "string" },
+        deepening_hook: { type: "string" },
+      },
+      required: ["reading", "deepening_hook"],
+      additionalProperties: false,
+    },
+  },
+};
+
 export function buildReadingUserMessage(
   question: string,
   cards: readonly { name: string; orientation: CardOrientation }[],
@@ -52,6 +77,44 @@ Las tres cartas de la tirada abierta son:
 3. ${cards[2]?.name ?? "Carta 3"} — ${cards[2] ? orientationLabel(cards[2].orientation) : "derecha"}
 
 Interpretá las tres cartas como un sistema integrado, sin usar significados prefabricados, y respondé exclusivamente desde el contexto afectivo de la pregunta.`;
+}
+
+export function buildSingleCardUserMessage(
+  question: string,
+  card: { name: string; orientation: CardOrientation },
+): string {
+  return `La pregunta exacta de la persona es:
+"${question}"
+
+La carta única de la tirada abierta es:
+${card.name} — ${orientationLabel(card.orientation)}
+
+Respondé exclusivamente desde el contexto afectivo de la pregunta. La lectura debe ser completa por sí misma y el hook debe indicar sólo una dimensión posible para profundizar, sin formular ni imponer una pregunta siguiente.`;
+}
+
+type SingleCardLLMResponse = {
+  reading: string;
+  deepening_hook: string;
+};
+
+export function parseSingleCardLLMResponse(raw: string): SingleCardLLMResponse {
+  const parsed: unknown = JSON.parse(raw);
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    !("reading" in parsed) ||
+    !("deepening_hook" in parsed) ||
+    typeof parsed.reading !== "string" ||
+    typeof parsed.deepening_hook !== "string" ||
+    !parsed.reading.trim() ||
+    !parsed.deepening_hook.trim()
+  ) {
+    throw new Error("La respuesta estructurada de una carta es inválida");
+  }
+  return {
+    reading: parsed.reading.trim(),
+    deepening_hook: parsed.deepening_hook.trim(),
+  };
 }
 
 export const appRouter = router({
@@ -78,6 +141,54 @@ export const appRouter = router({
         paypalLink: paypalLink ?? "",
       };
     }),
+
+    /** Genera una lectura gratuita autosuficiente de una carta sin crear pedidos ni tocar pagos. */
+    submitSingleCardReading: publicProcedure
+      .input(z.object({
+        situation: z.string().min(10).max(500),
+        card: z.object({
+          id: z.string(),
+          orientation: z.enum(["upright", "reversed"]),
+        }),
+      }))
+      .mutation(async ({ input }) => {
+        const cards = normalizeSelection([input.card]);
+        const card = cards[0];
+        if (!card || cards.length !== 1) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Carta inválida" });
+        }
+
+        try {
+          const response = await invokeLLM({
+            messages: [
+              { role: "system", content: SINGLE_CARD_SYSTEM_PROMPT },
+              { role: "user", content: buildSingleCardUserMessage(input.situation, card) },
+            ],
+            response_format: SINGLE_CARD_RESPONSE_SCHEMA,
+          });
+          const raw = response.choices?.[0]?.message?.content;
+          if (typeof raw !== "string") {
+            throw new Error("La respuesta de una carta no contiene texto");
+          }
+          const structured = parseSingleCardLLMResponse(raw);
+          return {
+            card: {
+              id: card.id,
+              name: card.name,
+              emoji: card.emoji,
+              imageKey: card.imageKey,
+              orientation: card.orientation,
+            },
+            ...structured,
+          };
+        } catch (error) {
+          console.error("[LLM] Error generando lectura de una carta:", error);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "No pude completar la lectura en este momento. Volvé a intentarlo en unos segundos.",
+          });
+        }
+      }),
 
     /**
      * Crea pedido + genera lectura IA gratis con las 3 cartas y la situación.

@@ -6,10 +6,24 @@ import {
   orientationTransformClass,
   TAROT_DECK,
 } from "@shared/tarot";
+import {
+  createIndependentReadingDeck,
+  resolveDeepQuestion,
+  selectSingleCard,
+  toggleDeepCards,
+} from "@shared/readingFlow";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { appRouter, buildReadingUserMessage } from "./routers";
+import {
+  appRouter,
+  buildReadingUserMessage,
+  buildSingleCardUserMessage,
+  parseSingleCardLLMResponse,
+  SINGLE_CARD_RESPONSE_SCHEMA,
+  SINGLE_CARD_SYSTEM_PROMPT,
+  SYSTEM_PROMPT,
+} from "./routers";
 import type { TrpcContext } from "./_core/context";
 
 /**
@@ -130,10 +144,11 @@ describe("tarot deck integrity", () => {
     expect(component).toContain('transform: "rotate(180deg)"');
   });
 
-  it("baraja el mazo visible antes de entregarlo a la cuadrícula de Home", () => {
+  it("baraja mazos visibles independientes antes de cada cuadrícula de Home", () => {
     const home = fs.readFileSync(path.resolve(import.meta.dirname, "../client/src/pages/Home.tsx"), "utf8");
-    expect(home).toContain("shuffleDeck(TAROT_DECK)");
-    expect(home).toContain("deck={visibleDeck}");
+    expect(home).toContain("createIndependentReadingDeck()");
+    expect(home).toContain("deck={singleDeck}");
+    expect(home).toContain("deck={deepDeck}");
   });
 
   it("aplica 30% invertida por carta de forma independiente", () => {
@@ -146,6 +161,55 @@ describe("tarot deck integrity", () => {
   it("getCardById funciona para cartas válidas", () => {
     expect(getCardById("lovers")?.name).toBe("Los Enamorados");
     expect(getCardById("nonexistent")).toBeUndefined();
+  });
+});
+
+describe("Bloque 2 — independencia entre tiradas", () => {
+  it("la tirada gratuita selecciona exactamente una carta del mazo completo con orientación propia", () => {
+    const deck = createIndependentReadingDeck(() => 0.7);
+    const selection = selectSingleCard(deck[0]!, () => 0.29);
+    expect(deck).toHaveLength(78);
+    expect(TAROT_DECK.some(card => card.id === selection.id)).toBe(true);
+    expect(selection.orientation).toBe("reversed");
+  });
+
+  it("resuelve la pregunta profunda correcta para profundizar o hacer otra pregunta", () => {
+    expect(resolveDeepQuestion({
+      originalQuestion: "¿Me va a volver a buscar?",
+      newQuestion: "¿Qué necesito entender ahora?",
+      useOriginalQuestion: true,
+    })).toBe("¿Me va a volver a buscar?");
+    expect(resolveDeepQuestion({
+      originalQuestion: "¿Me va a volver a buscar?",
+      newQuestion: " ¿Qué necesito entender ahora? ",
+      useOriginalQuestion: false,
+    })).toBe("¿Qué necesito entender ahora?");
+  });
+
+  it("la tirada profunda es nueva, permite que reaparezca la carta gratuita y evita duplicados dentro de sus tres cartas", () => {
+    const freeCard = TAROT_DECK.find(card => card.id === "fool")!;
+    const deepDeck = createIndependentReadingDeck(() => 0.4);
+    expect(deepDeck.some(card => card.id === freeCard.id)).toBe(true);
+
+    let deepCards = toggleDeepCards([], freeCard, () => 0.3);
+    deepCards = toggleDeepCards(deepCards, TAROT_DECK.find(card => card.id === "ace_cups")!, () => 0.3);
+    deepCards = toggleDeepCards(deepCards, TAROT_DECK.find(card => card.id === "two_wands")!, () => 0.29);
+    const afterDeselection = toggleDeepCards(deepCards, freeCard, () => 0.29);
+
+    expect(deepCards).toHaveLength(3);
+    expect(new Set(deepCards.map(card => card.id)).size).toBe(3);
+    expect(deepCards.map(card => card.orientation)).toEqual(["upright", "upright", "reversed"]);
+    expect(afterDeselection).toHaveLength(2);
+    expect(afterDeselection.some(card => card.id === freeCard.id)).toBe(false);
+  });
+
+  it("el envío profundo usa exclusivamente deepQuestion y tres cartas nuevas, sin contexto de la lectura gratuita", () => {
+    const home = fs.readFileSync(path.resolve(import.meta.dirname, "../client/src/pages/Home.tsx"), "utf8");
+    const handler = home.slice(home.indexOf("const handleDeepReading"), home.indexOf("return ("));
+    expect(handler).toContain("situation: deepQuestion");
+    expect(handler).toContain("cards: deepCards.map");
+    expect(handler).not.toContain("freeReading");
+    expect(handler).not.toContain("deepeningHook");
   });
 });
 
@@ -163,9 +227,57 @@ describe("tarot reading prompt", () => {
     expect(prompt).not.toContain("CARD_TEXTS");
     expect(prompt).not.toContain("meaning");
   });
+
+  it("conserva el prompt profundo aprobado como contrato independiente", () => {
+    expect(SYSTEM_PROMPT).toContain("La lectura debe tener entre 80 y 120 palabras");
+    expect(SYSTEM_PROMPT).toContain("Interpretá las tres cartas juntas");
+    expect(SINGLE_CARD_SYSTEM_PROMPT).not.toBe(SYSTEM_PROMPT);
+  });
+});
+
+describe("tarot single-card reading contract", () => {
+  it("envía la pregunta exacta, el nombre y la orientación de la carta al LLM", () => {
+    const prompt = buildSingleCardUserMessage("¿Me va a volver a buscar?", {
+      name: "La Torre",
+      orientation: "reversed",
+    });
+    expect(prompt).toContain("¿Me va a volver a buscar?");
+    expect(prompt).toContain("La Torre — invertida");
+  });
+
+  it("define una respuesta estructurada con reading y deepening_hook", () => {
+    expect(SINGLE_CARD_RESPONSE_SCHEMA.json_schema.schema).toMatchObject({
+      required: ["reading", "deepening_hook"],
+      additionalProperties: false,
+    });
+    expect(parseSingleCardLLMResponse(JSON.stringify({
+      reading: "La carta sugiere una pausa antes de un movimiento concreto.",
+      deepening_hook: "Una lectura más amplia puede mirar qué sostiene esta pausa en el vínculo.",
+    }))).toEqual({
+      reading: "La carta sugiere una pausa antes de un movimiento concreto.",
+      deepening_hook: "Una lectura más amplia puede mirar qué sostiene esta pausa en el vínculo.",
+    });
+  });
+
+  it("rechaza una respuesta de una carta incompleta o inválida", () => {
+    expect(() => parseSingleCardLLMResponse('{"reading":"Solo lectura"}')).toThrow();
+    expect(() => parseSingleCardLLMResponse("texto plano")).toThrow();
+  });
 });
 
 describe("tarot.submitReading input validation", () => {
+  it("requiere una pregunta válida y una única carta existente para la tirada gratuita", async () => {
+    const caller = appRouter.createCaller(ctxAnon());
+    await expect(caller.tarot.submitSingleCardReading({
+      situation: "hola",
+      card: { id: "fool", orientation: "upright" },
+    })).rejects.toThrow();
+    await expect(caller.tarot.submitSingleCardReading({
+      situation: "Pregunta válida para probar una carta gratuita.",
+      card: { id: "carta_inexistente", orientation: "reversed" },
+    })).rejects.toThrow();
+  });
+
   it("rechaza situación demasiado corta", async () => {
     const caller = appRouter.createCaller(ctxAnon());
     await expect(

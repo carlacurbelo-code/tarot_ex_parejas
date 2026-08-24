@@ -3,51 +3,113 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SiteFooter } from "@/components/SiteFooter";
 import { trpc } from "@/lib/trpc";
+import {
+  createIndependentReadingDeck,
+  resolveDeepQuestion,
+  selectSingleCard,
+  toggleDeepCards,
+} from "@shared/readingFlow";
 import type { CardOrientation, TarotCard, TarotSelection } from "@shared/tarot";
-import { assignOrientations, shuffleDeck, TAROT_DECK } from "@shared/tarot";
-import { ArrowLeft, ArrowRight, Loader2, MessageCircle } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-const WHATSAPP_NUMBER = "598992435293";
-const WHATSAPP_MESSAGE = encodeURIComponent(
-  "Hola! Acabo de hacer mi lectura gratuita y quiero la lectura del ex + 3 preguntas.",
-);
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_MESSAGE}`;
-
-type Step = "intro" | "cards" | "result";
+type Step = "intro" | "single-cards" | "free-result" | "new-question" | "deep-cards" | "deep-result";
 
 export default function Home() {
   const [step, setStep] = useState<Step>("intro");
-  const [question, setQuestion] = useState("");
-  const [visibleDeck, setVisibleDeck] = useState<TarotCard[]>(() => shuffleDeck(TAROT_DECK));
-  const [selectedCards, setSelectedCards] = useState<TarotSelection[]>([]);
-  const [reading, setReading] = useState("");
-  const submitReading = trpc.tarot.submitReading.useMutation();
+  const [originalQuestion, setOriginalQuestion] = useState("");
+  const [newQuestion, setNewQuestion] = useState("");
+  const [deepQuestion, setDeepQuestion] = useState("");
+  const [singleDeck, setSingleDeck] = useState<TarotCard[]>(() => createIndependentReadingDeck());
+  const [deepDeck, setDeepDeck] = useState<TarotCard[]>(() => createIndependentReadingDeck());
+  const [singleCard, setSingleCard] = useState<TarotSelection | null>(null);
+  const [deepCards, setDeepCards] = useState<TarotSelection[]>([]);
+  const [freeReading, setFreeReading] = useState("");
+  const [deepeningHook, setDeepeningHook] = useState("");
+  const [deepReading, setDeepReading] = useState("");
+  const submitSingleReading = trpc.tarot.submitSingleCardReading.useMutation();
+  const submitDeepReadingMutation = trpc.tarot.submitReading.useMutation();
 
-  const toggleCard = (card: TarotCard) => {
-    setSelectedCards(current => {
-      const existing = current.find(selected => selected.id === card.id);
-      if (existing) return current.filter(selected => selected.id !== card.id);
-      if (current.length >= 3) return current;
-      const [oriented] = assignOrientations([card]);
-      return oriented ? [...current, oriented] : current;
-    });
+  const beginSingleDraw = () => {
+    setSingleCard(null);
+    setFreeReading("");
+    setDeepeningHook("");
+    setSingleDeck(createIndependentReadingDeck());
+    setStep("single-cards");
   };
 
-  const handleContinue = async () => {
-    if (selectedCards.length !== 3 || question.trim().length < 10) return;
-    setStep("result");
-    setReading("");
+  const toggleSingleCard = (card: TarotCard) => {
+    setSingleCard(current => current?.id === card.id ? null : selectSingleCard(card));
+  };
+
+  const submitFreeReading = async () => {
+    if (!singleCard || originalQuestion.trim().length < 10) return;
+    setStep("free-result");
+    setFreeReading("");
+    setDeepeningHook("");
     try {
-      const result = await submitReading.mutateAsync({
-        situation: question.trim(),
-        cards: selectedCards.map(({ id, orientation }) => ({ id, orientation })),
+      const result = await submitSingleReading.mutateAsync({
+        situation: originalQuestion.trim(),
+        card: { id: singleCard.id, orientation: singleCard.orientation },
       });
-      setReading(result.reading);
+      setFreeReading(result.reading);
+      setDeepeningHook(result.deepening_hook);
     } catch (error) {
       console.error(error);
-      setReading("No pude completar la lectura en este momento. Volvé a intentarlo en unos segundos.");
+      setFreeReading("No pude completar la lectura en este momento. Volvé a intentarlo en unos segundos.");
+      toast.error("No pudimos generar tu lectura. Probá nuevamente.");
+    }
+  };
+
+  const beginDeepDraw = (question: string) => {
+    const resolved = question.trim();
+    if (resolved.length < 10) return;
+    setDeepQuestion(resolved);
+    setDeepCards([]);
+    setDeepReading("");
+    setDeepDeck(createIndependentReadingDeck());
+    setStep("deep-cards");
+  };
+
+  const deepenOriginalQuestion = () => {
+    beginDeepDraw(resolveDeepQuestion({
+      originalQuestion,
+      newQuestion,
+      useOriginalQuestion: true,
+    }));
+  };
+
+  const startAnotherQuestion = () => {
+    setNewQuestion("");
+    setStep("new-question");
+  };
+
+  const submitNewQuestion = () => {
+    beginDeepDraw(resolveDeepQuestion({
+      originalQuestion,
+      newQuestion,
+      useOriginalQuestion: false,
+    }));
+  };
+
+  const toggleDeepCard = (card: TarotCard) => {
+    setDeepCards(current => toggleDeepCards(current, card));
+  };
+
+  const handleDeepReading = async () => {
+    if (deepCards.length !== 3 || deepQuestion.length < 10) return;
+    setStep("deep-result");
+    setDeepReading("");
+    try {
+      const result = await submitDeepReadingMutation.mutateAsync({
+        situation: deepQuestion,
+        cards: deepCards.map(({ id, orientation }) => ({ id, orientation })),
+      });
+      setDeepReading(result.reading);
+    } catch (error) {
+      console.error(error);
+      setDeepReading("No pude completar la lectura en este momento. Volvé a intentarlo en unos segundos.");
       toast.error("No pudimos generar tu lectura. Probá nuevamente.");
     }
   };
@@ -57,30 +119,72 @@ export default function Home() {
       <main className="flex-1">
         {step === "intro" && (
           <IntroSection
-            question={question}
-            onQuestionChange={setQuestion}
-            onStart={() => {
-              setSelectedCards([]);
-              setVisibleDeck(shuffleDeck(TAROT_DECK));
-              setStep("cards");
-            }}
+            question={originalQuestion}
+            onQuestionChange={setOriginalQuestion}
+            onStart={beginSingleDraw}
           />
         )}
-        {step === "cards" && (
-          <CardsSection
-            deck={visibleDeck}
-            selectedCards={selectedCards}
-            onToggle={toggleCard}
+        {step === "single-cards" && (
+          <CardSelectionSection
+            deck={singleDeck}
+            selectedCards={singleCard ? [singleCard] : []}
+            requiredCount={1}
+            title="Elegí una carta"
+            continueLabel="Ver mi lectura"
+            onToggle={toggleSingleCard}
             onBack={() => setStep("intro")}
-            onContinue={handleContinue}
+            onContinue={submitFreeReading}
           />
         )}
-        {step === "result" && (
-          <ResultSection
-            cards={selectedCards}
-            reading={reading}
-            loading={submitReading.isPending}
-            onBack={() => setStep("cards")}
+        {step === "free-result" && singleCard && (
+          <ReadingResultSection
+            cards={[singleCard]}
+            reading={freeReading}
+            loading={submitSingleReading.isPending}
+            eyebrow="Tu lectura"
+            title="Lo que dice tu carta"
+            onBack={() => setStep("single-cards")}
+            deepeningHook={deepeningHook}
+            actions={
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <Button size="lg" className="h-12 text-base" onClick={deepenOriginalQuestion}>
+                  Profundizar esta lectura <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="lg" className="h-12 text-base" onClick={startAnotherQuestion}>
+                  Hacer otra pregunta
+                </Button>
+              </div>
+            }
+          />
+        )}
+        {step === "new-question" && (
+          <NewQuestionSection
+            question={newQuestion}
+            onQuestionChange={setNewQuestion}
+            onBack={() => setStep("free-result")}
+            onContinue={submitNewQuestion}
+          />
+        )}
+        {step === "deep-cards" && (
+          <CardSelectionSection
+            deck={deepDeck}
+            selectedCards={deepCards}
+            requiredCount={3}
+            title="Elegí tres cartas"
+            continueLabel="Ver mi lectura profunda"
+            onToggle={toggleDeepCard}
+            onBack={() => setStep("free-result")}
+            onContinue={handleDeepReading}
+          />
+        )}
+        {step === "deep-result" && (
+          <ReadingResultSection
+            cards={deepCards}
+            reading={deepReading}
+            loading={submitDeepReadingMutation.isPending}
+            eyebrow="Tu lectura profunda"
+            title="Lo que dicen tus cartas"
+            onBack={() => setStep("deep-cards")}
           />
         )}
       </main>
@@ -109,7 +213,7 @@ function IntroSection({
           <span className="italic text-primary">siente algo?</span>
         </h1>
         <p className="mt-7 text-base sm:text-lg text-muted-foreground leading-relaxed max-w-lg mx-auto">
-          Escribí lo que querés entender sobre ese vínculo y elegí tres cartas.
+          Escribí lo que querés entender sobre ese vínculo y elegí una carta.
         </p>
         <label htmlFor="question" className="sr-only">Tu pregunta</label>
         <textarea
@@ -127,7 +231,7 @@ function IntroSection({
         </div>
         <div className="mt-8">
           <Button onClick={onStart} disabled={!canStart} size="lg" className="h-12 px-8 text-base font-medium">
-            Elegir mis 3 cartas
+            Elegir una carta
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
           <p className="mt-4 text-xs text-muted-foreground">Lectura inicial gratuita · sin registro</p>
@@ -149,30 +253,38 @@ function IntroSection({
   );
 }
 
-function CardsSection({
+function CardSelectionSection({
   deck,
   selectedCards,
+  requiredCount,
+  title,
+  continueLabel,
   onToggle,
   onBack,
   onContinue,
 }: {
   deck: TarotCard[];
   selectedCards: TarotSelection[];
+  requiredCount: number;
+  title: string;
+  continueLabel: string;
   onToggle: (card: TarotCard) => void;
   onBack: () => void;
   onContinue: () => void;
 }) {
   const selectedIds = selectedCards.map(card => card.id);
-  const remaining = 3 - selectedCards.length;
+  const remaining = requiredCount - selectedCards.length;
+  const selectionText = remaining > 0
+    ? `Te queda${remaining === 1 ? "" : "n"} ${remaining} ${remaining === 1 ? "carta" : "cartas"} por elegir.`
+    : `${requiredCount === 1 ? "Carta elegida." : "Tres cartas elegidas."}`;
+
   return (
     <section className="container max-w-3xl pt-8 pb-24 fade-in">
       <Button variant="ghost" onClick={onBack} className="mb-5 -ml-2 text-muted-foreground">
         <ArrowLeft className="mr-2 h-4 w-4" /> Volver a la pregunta
       </Button>
-      <h2 className="font-serif text-3xl sm:text-4xl leading-tight text-foreground text-center">Elegí tres cartas</h2>
-      <p className="mt-3 text-center text-muted-foreground">
-        {remaining > 0 ? `Te quedan ${remaining} ${remaining === 1 ? "carta" : "cartas"} por elegir.` : "Tres cartas elegidas."}
-      </p>
+      <h2 className="font-serif text-3xl sm:text-4xl leading-tight text-foreground text-center">{title}</h2>
+      <p className="mt-3 text-center text-muted-foreground">{selectionText}</p>
 
       <div className="mt-8 grid grid-cols-3 sm:grid-cols-5 gap-3 sm:gap-4 justify-items-center">
         {deck.map(card => {
@@ -201,8 +313,8 @@ function CardsSection({
       </div>
 
       <div className="sticky bottom-4 mt-10 z-10">
-        <Button onClick={onContinue} disabled={selectedCards.length !== 3} size="lg" className="w-full h-12 text-base shadow-lg">
-          Ver mi lectura
+        <Button onClick={onContinue} disabled={selectedCards.length !== requiredCount} size="lg" className="w-full h-12 text-base shadow-lg">
+          {continueLabel}
           <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
@@ -210,24 +322,67 @@ function CardsSection({
   );
 }
 
-function ResultSection({
+function NewQuestionSection({
+  question,
+  onQuestionChange,
+  onBack,
+  onContinue,
+}: {
+  question: string;
+  onQuestionChange: (value: string) => void;
+  onBack: () => void;
+  onContinue: () => void;
+}) {
+  const canContinue = question.trim().length >= 10;
+  return (
+    <section className="container max-w-2xl pt-8 pb-16 fade-in">
+      <Button variant="ghost" onClick={onBack} className="mb-5 -ml-2 text-muted-foreground">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Volver a tu lectura
+      </Button>
+      <h1 className="font-serif text-3xl sm:text-4xl text-center text-foreground leading-tight">¿Qué querés preguntar?</h1>
+      <textarea
+        id="new-question"
+        value={question}
+        onChange={event => onQuestionChange(event.target.value)}
+        maxLength={500}
+        rows={4}
+        placeholder="Escribí tu nueva pregunta sobre este vínculo"
+        className="mt-8 w-full rounded-lg border border-border/70 bg-card/70 px-4 py-3 text-left text-foreground placeholder:text-muted-foreground/70 shadow-sm outline-none transition focus:ring-2 focus:ring-primary/40 resize-none"
+      />
+      <div className="mt-2 flex justify-end text-xs text-muted-foreground"><span>{question.length}/500</span></div>
+      <Button onClick={onContinue} disabled={!canContinue} size="lg" className="mt-8 w-full h-12 text-base">
+        Elegir tres cartas <ArrowRight className="ml-2 h-4 w-4" />
+      </Button>
+    </section>
+  );
+}
+
+function ReadingResultSection({
   cards,
   reading,
   loading,
+  eyebrow,
+  title,
   onBack,
+  deepeningHook,
+  actions,
 }: {
   cards: TarotSelection[];
   reading: string;
   loading: boolean;
+  eyebrow: string;
+  title: string;
   onBack: () => void;
+  deepeningHook?: string;
+  actions?: React.ReactNode;
 }) {
   return (
     <section className="container max-w-2xl pt-8 pb-16 fade-in">
       <Button variant="ghost" onClick={onBack} className="mb-5 -ml-2 text-muted-foreground">
         <ArrowLeft className="mr-2 h-4 w-4" /> Volver a las cartas
       </Button>
-      <p className="text-center font-serif italic text-muted-foreground">Tu lectura</p>
-      <h1 className="mt-3 font-serif text-3xl sm:text-4xl text-center text-foreground leading-tight">Lo que dicen tus cartas</h1>
+      <p className="text-center font-serif italic text-muted-foreground">{eyebrow}</p>
+      <h1 className="mt-3 font-serif text-3xl sm:text-4xl text-center text-foreground leading-tight">{title}</h1>
 
       <div className="mt-8 flex justify-center gap-3 sm:gap-4">
         {cards.map(card => (
@@ -252,23 +407,12 @@ function ResultSection({
         )}
       </Card>
 
-      <Card className="mt-8 p-6 sm:p-8 bg-gradient-to-br from-secondary/60 to-card border-border/60 shadow-sm">
-        <p className="text-xs font-medium uppercase tracking-widest text-primary mb-3">Si querés entender más</p>
-        <h2 className="font-serif text-2xl sm:text-3xl text-foreground leading-tight">
-          Lectura del ex<br /><span className="italic">+ 3 preguntas</span>
-        </h2>
-        <p className="mt-4 text-muted-foreground leading-relaxed">Una lectura íntima y personal sobre tu situación concreta, con respuesta a las 3 preguntas que más te rondan.</p>
-        <ul className="mt-5 space-y-2 text-sm text-foreground">
-          {["Lectura personalizada para tu vínculo específico", "3 preguntas respondidas con detalle", "Entrega por WhatsApp en 24 hs"].map(item => (
-            <li key={item} className="flex items-start gap-2.5"><span className="shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full bg-primary/60" /><span>{item}</span></li>
-          ))}
-        </ul>
-        <div className="mt-6 flex items-baseline gap-2"><span className="font-serif text-4xl text-foreground">USD 25</span><span className="text-sm text-muted-foreground">precio único</span></div>
-        <Button asChild size="lg" className="mt-6 w-full h-12 text-base">
-          <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer"><MessageCircle className="mr-2 h-5 w-5" />Quiero mi lectura completa</a>
-        </Button>
-        <p className="mt-3 text-center text-xs text-muted-foreground">Respondemos por WhatsApp · Entrega en 24 hs</p>
-      </Card>
+      {deepeningHook && !loading && (
+        <Card className="mt-6 p-5 sm:p-6 bg-secondary/35 border-border/60 shadow-sm">
+          <p className="text-sm leading-relaxed text-foreground">{deepeningHook}</p>
+          {actions}
+        </Card>
+      )}
     </section>
   );
 }
