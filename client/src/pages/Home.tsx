@@ -376,6 +376,10 @@ function ReadingResultSection({
   deepeningHook?: string;
   actions?: React.ReactNode;
 }) {
+  const loadingMessage = cards.length === 1
+    ? "Interpretando tu carta…"
+    : "Interpretando la combinación de tus cartas…";
+
   return (
     <section className="container max-w-2xl pt-8 pb-16 fade-in">
       <Button variant="ghost" onClick={onBack} className="mb-5 -ml-2 text-muted-foreground">
@@ -400,7 +404,7 @@ function ReadingResultSection({
       <Card className="mt-10 p-6 sm:p-8 bg-card border-border/60 shadow-sm min-h-44">
         {loading ? (
           <div className="flex items-center justify-center gap-3 py-10 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" /> Estoy leyendo la combinación de tus cartas…
+            <Loader2 className="h-5 w-5 animate-spin" /> {loadingMessage}
           </div>
         ) : (
           <div className="font-serif text-base sm:text-lg leading-[1.85] text-foreground whitespace-pre-line">{reading}</div>

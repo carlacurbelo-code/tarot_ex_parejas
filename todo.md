@@ -117,3 +117,10 @@
 - [x] Agregar pruebas automáticas de contrato, preguntas, independencia de tiradas y ausencia de arrastre de contexto.
 - [x] Ejecutar cinco pruebas manuales de una carta y tres flujos completos en la interfaz.
 - [x] Ejecutar TypeScript, build y Vitest; documentar resultados, límites y no cambios de pago o diseño; detenerse.
+
+## Corrección puntual Bloque 2 — síntesis, hook y loading
+- [x] Instruir `reading` ideal de 35–50 palabras, impedir que supere el máximo absoluto de 50 y no forzar relleno artificial.
+- [x] Instruir un `deepening_hook` concreto de hasta 25 palabras sin forzar relleno artificial, según pregunta, carta, orientación y lectura.
+- [x] Diferenciar los mensajes de carga de una carta y tres cartas sin modificar ninguna otra funcionalidad.
+- [x] Ejecutar y registrar cinco pruebas reales de una carta con lectura, conteo y hook.
+- [x] Verificar visualmente ambos mensajes de carga y ejecutar TypeScript y Vitest antes de detenerse.

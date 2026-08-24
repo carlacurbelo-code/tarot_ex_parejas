@@ -19,6 +19,7 @@ import {
   appRouter,
   buildReadingUserMessage,
   buildSingleCardUserMessage,
+  countWords,
   parseSingleCardLLMResponse,
   SINGLE_CARD_RESPONSE_SCHEMA,
   SINGLE_CARD_SYSTEM_PROMPT,
@@ -257,6 +258,44 @@ describe("tarot single-card reading contract", () => {
       reading: "La carta sugiere una pausa antes de un movimiento concreto.",
       deepening_hook: "Una lectura más amplia puede mirar qué sostiene esta pausa en el vínculo.",
     });
+  });
+
+  it("impone los límites absolutos de 50 palabras para reading y 25 para hook", () => {
+    const validReading = Array.from({ length: 50 }, (_, index) => `palabra${index}`).join(" ");
+    const validHook = Array.from({ length: 25 }, (_, index) => `hook${index}`).join(" ");
+    expect(countWords(validReading)).toBe(50);
+    expect(countWords(validHook)).toBe(25);
+    expect(parseSingleCardLLMResponse(JSON.stringify({
+      reading: validReading,
+      deepening_hook: validHook,
+    }))).toEqual({ reading: validReading, deepening_hook: validHook });
+    expect(() => parseSingleCardLLMResponse(JSON.stringify({
+      reading: `${validReading} extra`,
+      deepening_hook: validHook,
+    }))).toThrow("excede los límites");
+    expect(() => parseSingleCardLLMResponse(JSON.stringify({
+      reading: validReading,
+      deepening_hook: `${validHook} extra`,
+    }))).toThrow("excede los límites");
+  });
+
+  it("explicita síntesis y una incógnita concreta en el prompt de una carta", () => {
+    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("35 y 50 palabras");
+    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("nunca puede superar 50 palabras");
+    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("máximo absoluto de 25 palabras");
+    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("cuál incógnita relevante queda abierta");
+    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("Nunca lo conviertas en un sintagma nominal");
+    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("dato específico pendiente");
+    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("no introduzcas anglicismos");
+    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("datos ocultos");
+    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("gramatical, idiomática y natural en español rioplatense");
+  });
+
+  it("muestra mensajes de carga distintos para una carta y para tres cartas", () => {
+    const home = fs.readFileSync(path.resolve(import.meta.dirname, "../client/src/pages/Home.tsx"), "utf8");
+    expect(home).toContain("Interpretando tu carta…");
+    expect(home).toContain("Interpretando la combinación de tus cartas…");
+    expect(home).toContain("cards.length === 1");
   });
 
   it("rechaza una respuesta de una carta incompleta o inválida", () => {

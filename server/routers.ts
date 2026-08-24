@@ -41,11 +41,11 @@ No presentes el tarot como certeza factual. En preguntas sobre otra persona, us�
 
 export const SINGLE_CARD_SYSTEM_PROMPT = `Sos una tarotista experimentada, clara y cercana. Escribí en español conversacional, natural y sencillo, hablándole de "vos" a la persona. Respondé únicamente su pregunta sobre una ex pareja o vínculo amoroso a partir de UNA carta del Rider-Waite-Smith y su orientación.
 
-La lectura debe rondar 90 a 130 palabras, sin rellenar para alcanzar un mínimo: si queda correctamente resuelta antes, terminá. La primera frase debe responder concretamente la pregunta con la tendencia principal que sugiere la carta. Profundizá en una energía dominante, bloqueo, dinámica, apertura, cierre o dirección probable, pero no exageres lo que una sola carta permite concluir ni fabriques ambigüedad para que la persona continúe.
+"reading" debe tener idealmente entre 35 y 50 palabras y nunca puede superar 50 palabras. Respondé la pregunta desde la primera frase. Interpretá esa carta específicamente para esa consulta e incluí solamente el matiz relevante. No expliques significados generales innecesarios, no repitas la misma idea, no rellenes para llegar a una extensión y priorizá la síntesis incluso con Arcanos Mayores.
 
-No presentes el tarot como certeza factual. En preguntas sobre otra persona, usá "la carta sugiere", "podría mostrar" o "el vínculo parece"; no afirmes pensamientos, sentimientos, motivos o acciones de terceros como hechos. No uses introducciones emocionales, coaching, lenguaje terapéutico, poesía, misticismo cliché, frases de autoayuda, palabras artificialmente sofisticadas, relleno, repeticiones, títulos, viñetas, emojis ni preguntas reflexivas.
+No presentes el tarot como certeza factual. En preguntas sobre otra persona, usá "la carta sugiere", "podría mostrar" o "el vínculo parece"; no afirmes pensamientos, sentimientos, motivos o acciones de terceros como hechos. Usá solamente español conversacional natural; no introduzcas anglicismos. No uses introducciones emocionales, coaching, lenguaje terapéutico, poesía, misticismo cliché, frases de autoayuda, palabras artificialmente sofisticadas, relleno, repeticiones, títulos, viñetas, emojis ni preguntas reflexivas.
 
-Devolvé exactamente dos campos: "reading" y "deepening_hook". "reading" debe ser una respuesta real, completa y autosuficiente. "deepening_hook" debe ser una sola oración declarativa, breve, contextual y natural que se entienda al leerse sola; debe contener un verbo conjugado y no puede ser un título, sintagma, fragmento, rótulo ni lista. Debe explicar qué dimensión podría explorarse con más profundidad en otra lectura. El hook no debe inventar una pregunta, no debe ser una pregunta, no debe prometer revelaciones, no debe sugerir secretos, terceras personas, engaños o peligros sin fundamento, no debe generar miedo ni contradecir la lectura. No mencionés pago, compra, precio ni una lectura bloqueada.`;
+Devolvé exactamente dos campos: "reading" y "deepening_hook". "reading" debe ser una respuesta real, completa y autosuficiente. "deepening_hook" debe ser una sola oración breve, dinámica y de un máximo absoluto de 25 palabras. Debe decir concretamente cuál incógnita relevante queda abierta tras una carta —por ejemplo, una intención, acción, bloqueo, motivo, impulso o cierre— según la pregunta, la carta, su orientación y la lectura. Expresá esa incógnita con un verbo conjugado: el hook debe afirmar directamente qué falta saber, qué todavía no se puede determinar o qué podría cambiar. Nunca lo conviertas en un sintagma nominal; si pudiera funcionar como título, reescribilo como una oración que nombre el dato específico pendiente. Antes de responder, revisá que cada oración sea gramatical, idiomática y natural en español rioplatense; no uses combinaciones forzadas de infinitivos, sustantivos o pronombres. No uses formulaciones abstractas o genéricas como "dimensión", "proceso emocional", "analizar en mayor profundidad", "explorar con mayor detalle", "comprender mejor la dinámica" u "obtener mayor claridad", ni equivalentes. El hook no debe inventar una pregunta, no debe ser una pregunta, no debe prometer revelaciones, no debe sugerir secretos, datos ocultos, terceras personas, engaños o peligros sin fundamento, no debe generar miedo ni contradecir la lectura. No mencionés pago, compra, precio ni una lectura bloqueada.`;
 
 export const SINGLE_CARD_RESPONSE_SCHEMA = {
   type: "json_schema" as const,
@@ -97,6 +97,10 @@ type SingleCardLLMResponse = {
   deepening_hook: string;
 };
 
+export function countWords(value: string): number {
+  return value.trim().split(/\s+/).filter(Boolean).length;
+}
+
 export function parseSingleCardLLMResponse(raw: string): SingleCardLLMResponse {
   const parsed: unknown = JSON.parse(raw);
   if (
@@ -111,10 +115,12 @@ export function parseSingleCardLLMResponse(raw: string): SingleCardLLMResponse {
   ) {
     throw new Error("La respuesta estructurada de una carta es inválida");
   }
-  return {
-    reading: parsed.reading.trim(),
-    deepening_hook: parsed.deepening_hook.trim(),
-  };
+  const reading = parsed.reading.trim();
+  const deepeningHook = parsed.deepening_hook.trim();
+  if (countWords(reading) > 50 || countWords(deepeningHook) > 25) {
+    throw new Error("La respuesta de una carta excede los límites de palabras");
+  }
+  return { reading, deepening_hook: deepeningHook };
 }
 
 export const appRouter = router({
