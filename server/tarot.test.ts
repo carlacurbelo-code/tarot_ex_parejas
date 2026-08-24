@@ -1,6 +1,13 @@
-import { TAROT_DECK, getCardById } from "@shared/tarot";
+import {
+  assignOrientations,
+  drawThreeCards,
+  getCardById,
+  normalizeSelection,
+  orientationTransformClass,
+  TAROT_DECK,
+} from "@shared/tarot";
 import { describe, expect, it } from "vitest";
-import { appRouter } from "./routers";
+import { appRouter, buildReadingUserMessage } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
 /**
@@ -54,25 +61,90 @@ function ctxRegular(): TrpcContext {
 }
 
 describe("tarot.getDeck", () => {
-  it("devuelve el mazo completo de 30 cartas", async () => {
+  it("devuelve el mazo completo de 78 cartas", async () => {
     const caller = appRouter.createCaller(ctxAnon());
     const deck = await caller.tarot.getDeck();
     expect(deck.length).toBe(TAROT_DECK.length);
-    expect(deck.length).toBeGreaterThanOrEqual(22);
+    expect(deck.length).toBe(78);
     expect(deck[0]).toHaveProperty("id");
     expect(deck[0]).toHaveProperty("name");
   });
 });
 
 describe("tarot deck integrity", () => {
-  it("todas las cartas tienen id único", () => {
+  it("contiene 22 mayores y 56 menores, sin cartas faltantes", () => {
+    expect(TAROT_DECK).toHaveLength(78);
+    expect(TAROT_DECK.filter(card => card.arcana === "major")).toHaveLength(22);
+    expect(TAROT_DECK.filter(card => card.arcana === "minor")).toHaveLength(56);
+    expect(TAROT_DECK.filter(card => card.id.endsWith("_cups"))).toHaveLength(14);
+    expect(TAROT_DECK.filter(card => card.id.endsWith("_wands"))).toHaveLength(14);
+    expect(TAROT_DECK.filter(card => card.id.endsWith("_swords"))).toHaveLength(14);
+    expect(TAROT_DECK.filter(card => card.id.endsWith("_pentacles"))).toHaveLength(14);
+  });
+
+  it("todas las cartas tienen id único y placeholder estable", () => {
     const ids = TAROT_DECK.map(c => c.id);
     expect(new Set(ids).size).toBe(ids.length);
+    expect(TAROT_DECK.every(card => card.imageKey === `placeholder:${card.id}`)).toBe(true);
+    expect(TAROT_DECK.every(card => card.arcana === "major" || card.arcana === "minor")).toBe(true);
+  });
+
+  it("puede seleccionar cartas de mayores, Copas, Bastos, Espadas y Oros", () => {
+    const selected = normalizeSelection([
+      { id: "lovers", orientation: "upright" },
+      { id: "ace_cups", orientation: "upright" },
+      { id: "two_wands", orientation: "reversed" },
+      { id: "three_swords", orientation: "upright" },
+      { id: "four_pentacles", orientation: "reversed" },
+    ]);
+    expect(selected.map(card => card.id)).toEqual([
+      "lovers",
+      "ace_cups",
+      "two_wands",
+      "three_swords",
+      "four_pentacles",
+    ]);
+  });
+
+  it("devuelve tres cartas distintas y asigna orientación a cada una", () => {
+    const drawn = drawThreeCards(() => 0.9);
+    expect(drawn).toHaveLength(3);
+    expect(new Set(drawn.map(card => card.id)).size).toBe(3);
+    expect(drawn.every(card => card.orientation === "upright" || card.orientation === "reversed")).toBe(true);
+  });
+
+  it("representa una carta invertida con rotación visual de 180 grados", () => {
+    expect(orientationTransformClass("reversed", true)).toBe("rotate-180");
+    expect(orientationTransformClass("upright", true)).toBe("");
+    expect(orientationTransformClass("reversed", false)).toBe("");
+  });
+
+  it("aplica 30% invertida por carta de forma independiente", () => {
+    const reversed = assignOrientations([TAROT_DECK[0]!, TAROT_DECK[1]!], () => 0.29);
+    const upright = assignOrientations([TAROT_DECK[0]!, TAROT_DECK[1]!], () => 0.3);
+    expect(reversed.every(card => card.orientation === "reversed")).toBe(true);
+    expect(upright.every(card => card.orientation === "upright")).toBe(true);
   });
 
   it("getCardById funciona para cartas válidas", () => {
     expect(getCardById("lovers")?.name).toBe("Los Enamorados");
     expect(getCardById("nonexistent")).toBeUndefined();
+  });
+});
+
+describe("tarot reading prompt", () => {
+  it("incluye pregunta exacta y orientaciones, sin CARD_TEXTS ni meanings", () => {
+    const prompt = buildReadingUserMessage("¿Qué siente por mí?", [
+      { name: "La Luna", orientation: "reversed" },
+      { name: "Dos de Copas", orientation: "upright" },
+      { name: "El Ermitaño", orientation: "upright" },
+    ]);
+    expect(prompt).toContain("¿Qué siente por mí?");
+    expect(prompt).toContain("La Luna — invertida");
+    expect(prompt).toContain("Dos de Copas — derecha");
+    expect(prompt).toContain("El Ermitaño — derecha");
+    expect(prompt).not.toContain("CARD_TEXTS");
+    expect(prompt).not.toContain("meaning");
   });
 });
 

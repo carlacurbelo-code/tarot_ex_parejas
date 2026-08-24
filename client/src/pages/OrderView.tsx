@@ -56,6 +56,7 @@ export default function OrderView() {
                 name={card.name}
                 emoji={card.emoji}
                 revealed
+                orientation={card.orientation}
                 size="sm"
               />
             ))}

@@ -54,3 +54,33 @@
 - [x] Corregir el fallo de servidor, compilación o ruta si existe (no fue necesario: el enlace anterior había expirado)
 - [x] Verificar la URL vigente en escritorio y móvil antes de entregar
 - [x] Verificar la URL vigente en viewport móvil y documentar la carga correcta
+
+## Bloque 1: motor de cartas e interpretación
+- [x] Inspeccionar si la implementación actual utiliza cartas invertidas
+- [x] Convertir el mazo a exactamente 78 cartas únicas y seleccionables
+- [x] No incorporar significados manuales; la interpretación amorosa queda a cargo del LLM según la especificación vigente
+- [x] Mantener la pregunta libre, la selección de tres cartas y la lectura integrada
+- [x] Incorporar cartas invertidas según la especificación vigente, sin ampliar el alcance
+- [x] No modificar branding, diseño general, audio, PayPal, panel admin, pedidos, precios, suscripciones, autenticación, historial, WhatsApp ni estructura premium
+- [x] Añadir y ejecutar tests del mazo completo y verificar TypeScript
+- [x] Entregar únicamente el reporte del Bloque 1 y detenerse
+
+## Bloque 1 actualizado: 78 cartas, derechas e invertidas e interpretación IA
+- [x] Tratar el nuevo prompt como referencia vigente del Bloque 1
+- [x] Incorporar orientación derecha/invertida con 30% de probabilidad por carta
+- [x] No crear ni almacenar significados manuales para 156 combinaciones
+- [x] Enviar a la IA únicamente pregunta, nombres, orientaciones, posiciones si ya existen e instrucciones del lector
+- [x] Mantener el funnel actual pregunta libre → 3 cartas → lectura IA
+- [x] Mantener sin cambios funnel, monetización, premium/audio, pagos, panel admin, branding, estética y funcionalidades ajenas
+- [x] Ejecutar cinco pruebas manuales de calidad de interpretación solicitadas
+- [x] Incluir el system prompt completo y el modelo usado en el reporte final
+
+## Especificación vigente confirmada: Bloque 1 final
+- [x] Usar exclusivamente el nuevo prompt como fuente de verdad para este bloque
+- [x] Recuperar pregunta libre en la ruta `/` y enviarla al LLM
+- [x] Unificar `/` y los flujos existentes sin refactorización riesgosa; comparten catálogo, formato y orientación
+- [x] Incorporar placeholders sin buscar, descargar, diseñar ni generar imágenes nuevas
+- [x] Representar cada carta con una única identidad y orientación independiente
+- [x] Mantener el modelo/proveedor/helper de IA actuales
+- [x] Verificar que CARD_TEXTS/meaning no se envíen al nuevo flujo IA de `/`
+- [x] Reportar literalmente el system prompt, datos enviados, pruebas manuales y modelo disponible

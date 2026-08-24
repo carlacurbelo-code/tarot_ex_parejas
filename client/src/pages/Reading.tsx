@@ -62,6 +62,7 @@ export default function Reading() {
                 name={card.name}
                 emoji={card.emoji}
                 revealed
+                orientation={card.orientation}
                 size="sm"
               />
             ))}

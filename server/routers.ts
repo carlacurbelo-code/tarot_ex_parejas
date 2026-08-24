@@ -1,5 +1,12 @@
 import { COOKIE_NAME } from "@shared/const";
-import { TAROT_DECK, getCardById } from "@shared/tarot";
+import {
+  TAROT_DECK,
+  assignOrientations,
+  normalizeSelection,
+  orientationLabel,
+  parseStoredSelection,
+  type CardOrientation,
+} from "@shared/tarot";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -24,7 +31,9 @@ import { storagePut } from "./storage";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, publicProcedure, router } from "./_core/trpc";
 
-const SYSTEM_PROMPT = `Sos una tarotista íntima y humana que escribe lecturas para personas con dudas sobre una ex pareja o un vínculo amoroso terminado o en pausa.
+export const SYSTEM_PROMPT = `Sos una tarotista íntima y humana que escribe lecturas para personas con dudas sobre una ex pareja o un vínculo amoroso terminado o en pausa.
+
+La consulta siempre pertenece al ámbito del amor, los vínculos y las relaciones. Interpretá exclusivamente la pregunta afectiva concreta y las tres cartas como un sistema abierto. No uses significados prefabricados ni conviertas la respuesta en tres definiciones independientes.
 
 Tu voz:
 - Cálida, cercana, emocional. Hablás de "vos" (rioplatense / hispano neutro suave).
@@ -39,7 +48,9 @@ Cómo escribís la lectura:
 - Reflejá lo que la persona compartió en su situación.
 - Generá CLARIDAD PARCIAL: tocá el corazón del tema, mostrá la dinámica real, pero NO cierres la interpretación. Dejá puertas abiertas, matices, una pregunta sin responder, un detalle por explorar.
 - El final debe dejar a la persona con ganas de profundizar, sintiendo que hay más por entender en su caso particular.
-- NO prometas certezas absolutas (jamás "va a volver", "no va a volver", "te ama", "no te ama"). Hablá de tendencias, energías del vínculo, gestos posibles.
+- NO prometas certezas absolutas (jamás "va a volver", "no va a volver", "te ama", "no te ama"). Hablá de tendencias, posibilidades y dinámicas observables del vínculo.
+- Si la pregunta trata sobre lo que otra persona piensa, siente o hará, no escribas como hecho que esa persona sintió, siente, piensa, quiere o decidió algo. Usá formulaciones explícitas como "la tirada sugiere", "simbólicamente aparece", "esta combinación apunta a" o "la dinámica podría estar mostrando". Diferenciá siempre la vivencia de la consultante de cualquier hipótesis sobre la otra persona.
+- No uses afirmaciones psicológicas categóricas sobre terceros, como "se alejó porque", "está confundido", "te extraña", "no es indiferencia" o "siente tanto que". Reformulalas como posibilidades condicionadas por la tirada.
 - NO uses bullet points ni títulos. Es un texto fluido, en 3 a 5 párrafos cortos.
 - NO uses emojis.
 - NO firmes la lectura.
@@ -49,6 +60,21 @@ Estructura sugerida (sin titularla):
 2. La energía actual del vínculo, según las cartas.
 3. La dinámica emocional entre ambos / el bloqueo principal.
 4. Cierre abierto que orienta sin resolver del todo.`;
+
+export function buildReadingUserMessage(
+  question: string,
+  cards: readonly { name: string; orientation: CardOrientation }[],
+): string {
+  return `La pregunta exacta de la persona es:
+"${question}"
+
+Las tres cartas de la tirada abierta son:
+1. ${cards[0]?.name ?? "Carta 1"} — ${cards[0] ? orientationLabel(cards[0].orientation) : "derecha"}
+2. ${cards[1]?.name ?? "Carta 2"} — ${cards[1] ? orientationLabel(cards[1].orientation) : "derecha"}
+3. ${cards[2]?.name ?? "Carta 3"} — ${cards[2] ? orientationLabel(cards[2].orientation) : "derecha"}
+
+Interpretá las tres cartas como un sistema integrado, sin usar significados prefabricados, y respondé exclusivamente desde el contexto afectivo de la pregunta.`;
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -82,12 +108,20 @@ export const appRouter = router({
     submitReading: publicProcedure
       .input(z.object({
         situation: z.string().min(10).max(800),
-        cardIds: z.array(z.string()).length(3),
+        cardIds: z.array(z.string()).length(3).optional(),
+        cards: z.array(z.object({
+          id: z.string(),
+          orientation: z.enum(["upright", "reversed"]),
+        })).length(3).optional(),
+      }).refine(input => Boolean(input.cards || input.cardIds), {
+        message: "Se requieren tres cartas",
       }))
       .mutation(async ({ input }) => {
-        const cards = input.cardIds.map(id => getCardById(id)).filter(Boolean);
-        if (cards.length !== 3) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Cartas inválidas" });
+        const cards = input.cards
+          ? normalizeSelection(input.cards)
+          : assignOrientations(normalizeSelection((input.cardIds ?? []).map(id => ({ id }))));
+        if (cards.length !== 3 || new Set(cards.map(card => card.id)).size !== 3) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Cartas inválidas o repetidas" });
         }
 
         const accessToken = nanoid(24);
@@ -95,19 +129,11 @@ export const appRouter = router({
         await createOrder({
           accessToken,
           situation: input.situation,
-          selectedCards: JSON.stringify(input.cardIds),
+          selectedCards: JSON.stringify(cards.map(({ id, orientation }) => ({ id, orientation }))),
         });
 
         // Generar lectura con LLM
-        const userMsg = `La persona compartió esta situación con su ex / vínculo:
-"${input.situation}"
-
-Las 3 cartas que eligió son:
-1. ${cards[0]!.name} — ${cards[0]!.meaning}
-2. ${cards[1]!.name} — ${cards[1]!.meaning}
-3. ${cards[2]!.name} — ${cards[2]!.meaning}
-
-Escribí ahora la lectura siguiendo todas las reglas del sistema.`;
+        const userMsg = buildReadingUserMessage(input.situation, cards);
 
         let reading = "";
         try {
@@ -132,7 +158,7 @@ Escribí ahora la lectura siguiendo todas las reglas del sistema.`;
         return {
           accessToken,
           reading,
-          cards: cards.map(c => ({ id: c!.id, name: c!.name, emoji: c!.emoji, meaning: c!.meaning })),
+          cards: cards.map(c => ({ id: c!.id, name: c!.name, emoji: c!.emoji, imageKey: c!.imageKey, orientation: c!.orientation })),
         };
       }),
 
@@ -142,17 +168,16 @@ Escribí ahora la lectura siguiendo todas las reglas del sistema.`;
       .query(async ({ input }) => {
         const order = await getOrderByToken(input.token);
         if (!order) throw new TRPCError({ code: "NOT_FOUND" });
-        const cardIds: string[] = (() => {
+        const cards = parseStoredSelection((() => {
           try { return JSON.parse(order.selectedCards); } catch { return []; }
-        })();
-        const cards = cardIds.map(id => getCardById(id)).filter(Boolean);
+        })());
 
         return {
           id: order.id,
           accessToken: order.accessToken,
           situation: order.situation,
           freeReading: order.freeReading,
-          cards: cards.map(c => ({ id: c!.id, name: c!.name, emoji: c!.emoji, meaning: c!.meaning })),
+          cards: cards.map(c => ({ id: c!.id, name: c!.name, emoji: c!.emoji, imageKey: c!.imageKey, orientation: c!.orientation })),
           paymentStatus: order.paymentStatus,
           deliveryStatus: order.deliveryStatus,
           audioFileKey: order.audioFileKey,

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { orientationTransformClass, type CardOrientation } from "@shared/tarot";
 
 interface TarotCardViewProps {
   name?: string;
@@ -6,6 +7,7 @@ interface TarotCardViewProps {
   back?: boolean;
   selected?: boolean;
   revealed?: boolean;
+  orientation?: CardOrientation;
   onClick?: () => void;
   size?: "sm" | "md" | "lg";
   className?: string;
@@ -23,16 +25,20 @@ export function TarotCardView({
   back = false,
   selected = false,
   revealed = false,
+  orientation = "upright",
   onClick,
   size = "md",
   className,
 }: TarotCardViewProps) {
   const isClickable = !!onClick;
+  const orientationClass = orientationTransformClass(orientation, revealed);
+
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={!isClickable}
+      aria-label={back ? "Carta boca abajo" : `${name ?? "Carta"}${orientation === "reversed" && revealed ? ", invertida" : ", derecha"}`}
       className={cn(
         "relative rounded-lg border transition-all duration-300 flex flex-col items-center justify-center select-none overflow-hidden",
         sizeMap[size],
@@ -44,29 +50,30 @@ export function TarotCardView({
         !isClickable && "cursor-default",
         className,
       )}
-      aria-label={back ? "Carta boca abajo" : name}
     >
-      {back ? (
-        <div className="flex items-center justify-center w-full h-full">
-          <div className="absolute inset-2 border border-[oklch(0.65_0.04_55)]/30 rounded-md" />
-          <div className="absolute inset-3 border border-[oklch(0.65_0.04_55)]/20 rounded-md" />
-          <span className="font-serif text-2xl text-[oklch(0.78_0.045_55)]/60">✦</span>
-        </div>
-      ) : revealed ? (
-        <div className="flex flex-col items-center justify-between w-full h-full p-3">
-          <div className="flex-1 flex items-center justify-center">
-            <span className="text-3xl text-primary/80 font-serif">{emoji}</span>
+      <div className={cn("w-full h-full", orientationClass)}>
+        {back ? (
+          <div className="flex items-center justify-center w-full h-full">
+            <div className="absolute inset-2 border border-[oklch(0.65_0.04_55)]/30 rounded-md" />
+            <div className="absolute inset-3 border border-[oklch(0.65_0.04_55)]/20 rounded-md" />
+            <span className="font-serif text-2xl text-[oklch(0.78_0.045_55)]/60">✦</span>
           </div>
-          <div className="text-center">
-            <p className="font-serif font-medium leading-tight text-foreground">{name}</p>
+        ) : revealed ? (
+          <div className="flex flex-col items-center justify-between w-full h-full p-3">
+            <div className="flex-1 flex items-center justify-center">
+              <span className="text-3xl text-primary/80 font-serif">{emoji}</span>
+            </div>
+            <div className="text-center">
+              <p className="font-serif font-medium leading-tight text-foreground">{name}</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center w-full h-full p-3">
-          <span className="text-2xl text-muted-foreground">{emoji}</span>
-          <p className="mt-2 font-serif text-center leading-tight text-foreground">{name}</p>
-        </div>
-      )}
+        ) : (
+          <div className="flex flex-col items-center justify-center w-full h-full p-3">
+            <span className="text-2xl text-muted-foreground">{emoji}</span>
+            <p className="mt-2 font-serif text-center leading-tight text-foreground">{name}</p>
+          </div>
+        )}
+      </div>
     </button>
   );
 }
