@@ -48,3 +48,9 @@
 - [x] Tests vitest pasando (14/14)
 - [x] Mobile-first verificado
 - [x] Checkpoint final
+
+## Incidencia reportada
+- [x] Diagnosticar por qué la vista pública no carga en la URL compartida
+- [x] Corregir el fallo de servidor, compilación o ruta si existe (no fue necesario: el enlace anterior había expirado)
+- [x] Verificar la URL vigente en escritorio y móvil antes de entregar
+- [x] Verificar la URL vigente en viewport móvil y documentar la carga correcta
