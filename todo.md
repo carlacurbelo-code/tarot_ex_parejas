@@ -91,3 +91,11 @@
 - [x] Eliminar claridad parcial, pregunta reflexiva obligatoria y espera deliberada.
 - [x] Ejecutar las mismas cinco preguntas, contar palabras y actualizar el reporte.
 - [x] Confirmar que ninguna otra funcionalidad fue modificada y detenerse.
+
+## Corrección Bloque 1 — auditoría del selector y voz conversacional
+- [x] Auditar recorrido real de 78 cartas en `/` hasta UI y LLM.
+- [x] Ejecutar 20 tiradas reales con el selector de `/` y reportar las 60 cartas.
+- [x] Corregir selector únicamente si se detecta un error real; no se detectó error.
+- [x] Modificar únicamente `SYSTEM_PROMPT` a voz conversacional de 80–120 palabras.
+- [x] Ejecutar cinco lecturas nuevas, contar palabras, correr TypeScript y tests.
+- [x] Confirmar que no cambió ninguna otra funcionalidad y detenerse.
