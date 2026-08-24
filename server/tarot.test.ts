@@ -6,6 +6,8 @@ import {
   orientationTransformClass,
   TAROT_DECK,
 } from "@shared/tarot";
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { appRouter, buildReadingUserMessage } from "./routers";
 import type { TrpcContext } from "./_core/context";
@@ -117,6 +119,21 @@ describe("tarot deck integrity", () => {
     expect(orientationTransformClass("reversed", true)).toBe("rotate-180");
     expect(orientationTransformClass("upright", true)).toBe("");
     expect(orientationTransformClass("reversed", false)).toBe("");
+  });
+
+  it("aplica giro visual explícito a una carta revelada invertida", () => {
+    const component = fs.readFileSync(
+      path.resolve(import.meta.dirname, "../client/src/components/TarotCardView.tsx"),
+      "utf8",
+    );
+    expect(component).toContain('orientation === "reversed"');
+    expect(component).toContain('transform: "rotate(180deg)"');
+  });
+
+  it("baraja el mazo visible antes de entregarlo a la cuadrícula de Home", () => {
+    const home = fs.readFileSync(path.resolve(import.meta.dirname, "../client/src/pages/Home.tsx"), "utf8");
+    expect(home).toContain("shuffleDeck(TAROT_DECK)");
+    expect(home).toContain("deck={visibleDeck}");
   });
 
   it("aplica 30% invertida por carta de forma independiente", () => {

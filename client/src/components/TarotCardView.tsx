@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { orientationTransformClass, type CardOrientation } from "@shared/tarot";
+import type { CardOrientation } from "@shared/tarot";
 
 interface TarotCardViewProps {
   name?: string;
@@ -31,7 +31,7 @@ export function TarotCardView({
   className,
 }: TarotCardViewProps) {
   const isClickable = !!onClick;
-  const orientationClass = orientationTransformClass(orientation, revealed);
+  const isReversed = revealed && orientation === "reversed";
 
   return (
     <button
@@ -51,7 +51,10 @@ export function TarotCardView({
         className,
       )}
     >
-      <div className={cn("w-full h-full", orientationClass)}>
+      <div
+        className="w-full h-full"
+        style={isReversed ? { transform: "rotate(180deg)" } : undefined}
+      >
         {back ? (
           <div className="flex items-center justify-center w-full h-full">
             <div className="absolute inset-2 border border-[oklch(0.65_0.04_55)]/30 rounded-md" />

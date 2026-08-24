@@ -99,3 +99,10 @@
 - [x] Modificar únicamente `SYSTEM_PROMPT` a voz conversacional de 80–120 palabras.
 - [x] Ejecutar cinco lecturas nuevas, contar palabras, correr TypeScript y tests.
 - [x] Confirmar que no cambió ninguna otra funcionalidad y detenerse.
+
+## Reapertura Bloque 1 — auditoría real de la ruta `/`
+- [x] Auditar en navegador la cadena completa de cartas: catálogo, estado de Home, UI, backend y LLM.
+- [x] Realizar y registrar 15 tiradas completas desde la interacción real de `/`.
+- [x] Forzar temporalmente una tirada con al menos una carta invertida y comprobar giro visual, nombre, orientación y envío al LLM.
+- [x] Corregir solo el fallo confirmado de selección o representación de cartas, si existe, y restaurar el 30% aleatorio normal.
+- [x] Ejecutar TypeScript y Vitest, documentar hallazgos y detenerse sin avanzar de bloque.

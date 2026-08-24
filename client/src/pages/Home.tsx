@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { SiteFooter } from "@/components/SiteFooter";
 import { trpc } from "@/lib/trpc";
 import type { CardOrientation, TarotCard, TarotSelection } from "@shared/tarot";
-import { assignOrientations, TAROT_DECK } from "@shared/tarot";
+import { assignOrientations, shuffleDeck, TAROT_DECK } from "@shared/tarot";
 import { ArrowLeft, ArrowRight, Loader2, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ type Step = "intro" | "cards" | "result";
 export default function Home() {
   const [step, setStep] = useState<Step>("intro");
   const [question, setQuestion] = useState("");
+  const [visibleDeck, setVisibleDeck] = useState<TarotCard[]>(() => shuffleDeck(TAROT_DECK));
   const [selectedCards, setSelectedCards] = useState<TarotSelection[]>([]);
   const [reading, setReading] = useState("");
   const submitReading = trpc.tarot.submitReading.useMutation();
@@ -58,12 +59,16 @@ export default function Home() {
           <IntroSection
             question={question}
             onQuestionChange={setQuestion}
-            onStart={() => setStep("cards")}
+            onStart={() => {
+              setSelectedCards([]);
+              setVisibleDeck(shuffleDeck(TAROT_DECK));
+              setStep("cards");
+            }}
           />
         )}
         {step === "cards" && (
           <CardsSection
-            deck={TAROT_DECK}
+            deck={visibleDeck}
             selectedCards={selectedCards}
             onToggle={toggleCard}
             onBack={() => setStep("intro")}
