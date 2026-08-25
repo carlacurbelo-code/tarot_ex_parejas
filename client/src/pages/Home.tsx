@@ -250,12 +250,11 @@ function ContextSelectionSection({
           <ArrowLeft className="mr-2 h-4 w-4" /> Volver a tu lectura
         </Button>
       )}
-      <div className="tarot-surface relative overflow-hidden px-5 py-10 text-center sm:px-12 sm:py-15">
+      <div className="tarot-surface relative overflow-hidden px-5 py-10 text-center sm:px-12 sm:py-14">
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[var(--tarot-accent)]/80 to-transparent" />
         <p className="tarot-kicker flex items-center justify-center gap-2"><Sparkles className="h-3.5 w-3.5" /> Tarot de Medianoche</p>
-        <h1 className="mt-5 font-serif text-4xl leading-[0.95] text-foreground sm:text-6xl">Elegí el tema<br className="hidden sm:block" /> de tu consulta</h1>
-        <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">Una lectura clara para mirar lo que está en movimiento.</p>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+        <h1 className="mt-4 font-serif text-4xl leading-[0.95] text-foreground sm:text-6xl">Elegí el tema<br className="hidden sm:block" /> de tu consulta</h1>
+        <div className="mt-9 grid gap-4 sm:grid-cols-2">
           {(["love", "money_work"] as const).map(context => {
             const isLove = context === "love";
             const Icon = isLove ? Heart : BriefcaseBusiness;
@@ -270,8 +269,7 @@ function ContextSelectionSection({
                 <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--tarot-border)] bg-[var(--tarot-surface-elevated)] text-[var(--tarot-accent-hover)] transition group-hover:scale-105">
                   <Icon className="h-4 w-4" />
                 </span>
-                <span className="mt-8 block text-xs font-semibold tracking-[0.16em] text-[var(--tarot-ink-muted)]">{isLove ? "VÍNCULOS" : "PROYECTOS"}</span>
-                <span className="mt-2 block font-serif text-2xl leading-none text-foreground">{READING_CONTEXT_LABELS[context]}</span>
+                <span className="mt-8 block font-serif text-2xl leading-none text-foreground">{READING_CONTEXT_LABELS[context]}</span>
                 <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[var(--tarot-accent-hover)] transition-transform group-hover:translate-x-1" />
               </button>
             );
@@ -478,9 +476,9 @@ function ReadingResultSection({
       </Button>
       <div className="text-center">
         <p className="tarot-kicker">{eyebrow}</p>
-        <h1 className="mt-3 text-center font-serif text-4xl leading-[1.02] text-foreground sm:text-5xl">{title}</h1>
+        <h1 className="mt-2 text-center font-serif text-3xl leading-[1.05] text-foreground sm:text-4xl">{title}</h1>
       </div>
-      <div className={`mt-9 flex justify-center ${cards.length === 1 ? "gap-0" : "gap-3 sm:gap-5"}`}>
+      <div className={`mt-5 flex justify-center ${cards.length === 1 ? "gap-0" : "gap-3 sm:gap-5"}`}>
         {cards.map(card => (
           <TarotCardView
             key={card.id}
@@ -492,7 +490,7 @@ function ReadingResultSection({
           />
         ))}
       </div>
-      <Card className="tarot-surface mt-10 min-h-44 gap-0 border-0 p-6 shadow-none sm:p-9">
+      <Card className="tarot-reading-surface mt-7 min-h-0 gap-0 border-0 p-5 shadow-none sm:p-7">
         {loading ? (
           <div className="flex flex-col items-center justify-center gap-4 py-10 text-center text-muted-foreground">
             <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--tarot-border)] bg-[var(--tarot-surface-elevated)] shadow-[0_0_22px_var(--tarot-accent-glow)]">
@@ -501,7 +499,7 @@ function ReadingResultSection({
             <span className="font-serif text-lg text-foreground">{loadingMessage}</span>
           </div>
         ) : (
-          <div className="font-serif text-lg leading-[1.8] text-foreground whitespace-pre-line sm:text-xl">{reading}</div>
+          <div className="font-serif text-base leading-[1.65] text-foreground whitespace-pre-line sm:text-lg">{reading}</div>
         )}
       </Card>
       {!loading && actions}

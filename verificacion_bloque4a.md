@@ -39,3 +39,11 @@ Tras recibir la lectura, **«Hacer otra pregunta»** mantuvo su jerarquía visua
 ## Validación técnica
 
 `pnpm check`, `pnpm test` y `pnpm build` finalizaron correctamente. La suite aprobó **42/42** pruebas. Vite emitió solamente una advertencia no bloqueante por el tamaño de un bundle, sin relación con el rediseño.
+
+## Corrección puntual de jerarquía
+
+En móvil, la entrada conserva su marco, tipografía, fondos y cards aprobados. Se retiraron exclusivamente las etiquetas «VÍNCULOS» y «PROYECTOS», así como la frase «Una lectura clara para mirar lo que está en movimiento.». El espacio resultante se redistribuyó entre el título y las dos opciones, sin huecos artificiales.
+
+La revisión del resultado de una carta usó **Siete de Espadas invertida**. La carta quedó más cerca del título, ligeramente mayor y como foco visual principal; el CTA quedó integrado en malva viejo con glow reducido. La interpretación se mostró en una superficie más transparente, con borde y sombra discretos, texto de menor tamaño e interlineado más compacto.
+
+La revisión del resultado profundo usó **Nueve de Oros derecha**, **Sota de Bastos derecha** y **Cinco de Espadas invertida**. Las tres cartas mantuvieron separación, la invertida conservó su rotación y el mismo contenedor de lectura más ligero se aplicó sin introducir un CTA nuevo.

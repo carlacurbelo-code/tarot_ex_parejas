@@ -157,3 +157,9 @@
 - [x] Preparar visualmente el componente de carta para imágenes futuras por identificador, sin generar ni modificar el mazo.
 - [x] Verificar las 15 comprobaciones móviles solicitadas, las invertidas y los flujos conservados.
 - [x] Ejecutar TypeScript, Vitest y build; documentar todos los puntos obligatorios y detenerse.
+
+## Corrección puntual — Bloque 4A
+- [x] Eliminar únicamente «VÍNCULOS», «PROYECTOS» y la frase descriptiva de la pantalla inicial, reequilibrando el espacio.
+- [x] Desaturar mediante tokens el accent aplicado a superficies grandes y CTA, sin cambiar el sistema visual general.
+- [x] Refinar jerarquía del resultado: carta, separación, contenedor de lectura, tamaño/interlineado y acciones.
+- [x] Revisar la coherencia de una y tres cartas en móvil; ejecutar TypeScript, Vitest y build; documentar y detenerse.

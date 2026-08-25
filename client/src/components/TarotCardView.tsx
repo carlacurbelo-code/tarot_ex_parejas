@@ -17,7 +17,7 @@ interface TarotCardViewProps {
 const sizeMap = {
   sm: "h-[6.75rem] w-[4.25rem] text-[0.65rem] sm:h-32 sm:w-20 sm:text-xs",
   md: "h-40 w-24 text-sm",
-  lg: "h-56 w-36 text-base",
+  lg: "h-60 w-[9.5rem] text-base",
 };
 
 export function TarotCardView({

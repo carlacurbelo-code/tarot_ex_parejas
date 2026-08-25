@@ -51,9 +51,9 @@
   --tarot-surface-elevated: oklch(0.28 0.05 311);
   --tarot-ink: oklch(0.95 0.015 82);
   --tarot-ink-muted: oklch(0.78 0.026 307);
-  --tarot-accent: oklch(0.72 0.1 347);
-  --tarot-accent-hover: oklch(0.78 0.11 347);
-  --tarot-accent-glow: oklch(0.72 0.1 347 / 28%);
+  --tarot-accent: oklch(0.58 0.06 335);
+  --tarot-accent-hover: oklch(0.64 0.07 335);
+  --tarot-accent-glow: oklch(0.58 0.06 335 / 16%);
   --tarot-border: oklch(0.68 0.052 317 / 34%);
   --tarot-shadow: 0 22px 60px oklch(0.08 0.024 307 / 52%);
   --tarot-shadow-lift: 0 18px 42px oklch(0.08 0.024 307 / 64%), 0 0 28px var(--tarot-accent-glow);
@@ -69,7 +69,7 @@
   --popover: var(--tarot-surface-elevated);
   --popover-foreground: var(--tarot-ink);
   --primary: var(--tarot-accent);
-  --primary-foreground: var(--tarot-void);
+  --primary-foreground: var(--tarot-ink);
   --secondary: var(--tarot-surface-elevated);
   --secondary-foreground: var(--tarot-ink);
   --muted: oklch(0.25 0.035 308);
@@ -89,7 +89,7 @@
   --sidebar: var(--tarot-night);
   --sidebar-foreground: var(--tarot-ink);
   --sidebar-primary: var(--tarot-accent);
-  --sidebar-primary-foreground: var(--tarot-void);
+  --sidebar-primary-foreground: var(--tarot-ink);
   --sidebar-accent: var(--tarot-surface-elevated);
   --sidebar-accent-foreground: var(--tarot-ink);
   --sidebar-border: var(--tarot-border);
@@ -105,7 +105,7 @@
   --popover: var(--tarot-surface-elevated);
   --popover-foreground: var(--tarot-ink);
   --primary: var(--tarot-accent);
-  --primary-foreground: var(--tarot-void);
+  --primary-foreground: var(--tarot-ink);
   --secondary: var(--tarot-surface-elevated);
   --secondary-foreground: var(--tarot-ink);
   --muted: oklch(0.25 0.035 308);
@@ -120,7 +120,7 @@
   --sidebar: var(--tarot-night);
   --sidebar-foreground: var(--tarot-ink);
   --sidebar-primary: var(--tarot-accent);
-  --sidebar-primary-foreground: var(--tarot-void);
+  --sidebar-primary-foreground: var(--tarot-ink);
   --sidebar-accent: var(--tarot-surface-elevated);
   --sidebar-accent-foreground: var(--tarot-ink);
   --sidebar-border: var(--tarot-border);
@@ -217,6 +217,14 @@
     box-shadow: var(--tarot-shadow-lift);
   }
 
+  .tarot-reading-surface {
+    background: linear-gradient(145deg, oklch(0.26 0.042 309 / 68%), oklch(0.19 0.033 307 / 72%));
+    border: 1px solid oklch(0.68 0.052 317 / 20%);
+    border-radius: var(--tarot-radius-md);
+    box-shadow: 0 14px 36px oklch(0.08 0.024 307 / 24%);
+    backdrop-filter: blur(12px);
+  }
+
   .tarot-kicker {
     color: oklch(0.79 0.065 343);
     font-size: 0.68rem;
@@ -227,7 +235,7 @@
 
   .tarot-primary-action {
     background: linear-gradient(135deg, var(--tarot-accent-hover), var(--tarot-accent));
-    box-shadow: 0 12px 30px var(--tarot-accent-glow);
+    box-shadow: 0 10px 24px var(--tarot-accent-glow);
   }
 
   .tarot-secondary-action {
@@ -235,7 +243,6 @@
     border-color: var(--tarot-border);
   }
 
-  /* Microinteracciones nocturnas */
   .fade-in {
     animation: fadeIn 0.32s cubic-bezier(0.23, 1, 0.32, 1);
   }
