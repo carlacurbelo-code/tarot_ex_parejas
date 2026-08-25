@@ -134,3 +134,16 @@
 
 ## Ajuste puntual de interfaz — eliminar texto superior
 - [x] Eliminar únicamente el texto «Lecturas íntimas» de la parte superior de la pantalla pública, sin sustituirlo ni alterar el resto del encabezado, branding o diseño.
+
+## Bloque 3 — Amor y vínculos + Dinero y trabajo
+- [x] Confirmar el tramo final de la especificación adjunta sobre salud, embarazo/fertilidad, pruebas y reporte.
+- [x] Incorporar selección mínima de contexto antes de la pregunta y conservarlo durante cada consulta.
+- [x] Reemplazar el copy heredado de ex parejas por el copy neutro indicado.
+- [x] Mantener prompts separados para Amor y vínculos y crear prompts especializados para Dinero y trabajo.
+- [x] Aplicar las restricciones globales antes de consumir una tirada.
+- [x] Permitir cambio de contexto al hacer otra pregunta y conservarlo al profundizar.
+- [x] Proteger preguntas de salud y embarazo/fertilidad sin bloquear consultas relacionales permitidas sobre hijos o familia.
+- [x] Añadir pruebas de contextos, persistencia, catálogo compartido, invertidas y consultas restringidas/permitidas.
+- [x] Ejecutar las ocho pruebas manuales de Dinero y trabajo y las comprobaciones de contexto solicitadas.
+- [x] Verificar visualmente el copy neutro y la ausencia de referencias heredadas a ex parejas.
+- [x] Ejecutar TypeScript, Vitest y build; documentar el Bloque 3 y detenerse.

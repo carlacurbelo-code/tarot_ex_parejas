@@ -9,15 +9,24 @@ import {
   selectSingleCard,
   toggleDeepCards,
 } from "@shared/readingFlow";
+import {
+  isRestrictedQuestion,
+  READING_CONTEXT_LABELS,
+  RESTRICTED_QUESTION_MESSAGE,
+  type ReadingContext,
+} from "@shared/readingContext";
 import type { CardOrientation, TarotCard, TarotSelection } from "@shared/tarot";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-type Step = "intro" | "single-cards" | "free-result" | "new-question" | "deep-cards" | "deep-result";
+type Step = "context" | "intro" | "single-cards" | "free-result" | "new-question" | "deep-cards" | "deep-result";
+type ContextSelectionMode = "initial" | "new-question";
 
 export default function Home() {
-  const [step, setStep] = useState<Step>("intro");
+  const [step, setStep] = useState<Step>("context");
+  const [readingContext, setReadingContext] = useState<ReadingContext | null>(null);
+  const [contextSelectionMode, setContextSelectionMode] = useState<ContextSelectionMode>("initial");
   const [originalQuestion, setOriginalQuestion] = useState("");
   const [newQuestion, setNewQuestion] = useState("");
   const [deepQuestion, setDeepQuestion] = useState("");
@@ -27,10 +36,28 @@ export default function Home() {
   const [deepCards, setDeepCards] = useState<TarotSelection[]>([]);
   const [freeReading, setFreeReading] = useState("");
   const [deepReading, setDeepReading] = useState("");
+  const [restrictionMessage, setRestrictionMessage] = useState("");
   const submitSingleReading = trpc.tarot.submitSingleCardReading.useMutation();
   const submitDeepReadingMutation = trpc.tarot.submitReading.useMutation();
 
+  const selectReadingContext = (context: ReadingContext) => {
+    setReadingContext(context);
+    setRestrictionMessage("");
+    if (contextSelectionMode === "new-question") {
+      setStep("new-question");
+      return;
+    }
+    setOriginalQuestion("");
+    setStep("intro");
+  };
+
   const beginSingleDraw = () => {
+    if (!readingContext || originalQuestion.trim().length < 10) return;
+    if (isRestrictedQuestion(originalQuestion)) {
+      setRestrictionMessage(RESTRICTED_QUESTION_MESSAGE);
+      return;
+    }
+    setRestrictionMessage("");
     setSingleCard(null);
     setFreeReading("");
     setSingleDeck(createIndependentReadingDeck());
@@ -42,12 +69,13 @@ export default function Home() {
   };
 
   const submitFreeReading = async () => {
-    if (!singleCard || originalQuestion.trim().length < 10) return;
+    if (!singleCard || !readingContext || originalQuestion.trim().length < 10) return;
     setStep("free-result");
     setFreeReading("");
     try {
       const result = await submitSingleReading.mutateAsync({
         situation: originalQuestion.trim(),
+        context: readingContext,
         card: { id: singleCard.id, orientation: singleCard.orientation },
       });
       setFreeReading(result.reading);
@@ -60,7 +88,12 @@ export default function Home() {
 
   const beginDeepDraw = (question: string) => {
     const resolved = question.trim();
-    if (resolved.length < 10) return;
+    if (!readingContext || resolved.length < 10) return;
+    if (isRestrictedQuestion(resolved)) {
+      setRestrictionMessage(RESTRICTED_QUESTION_MESSAGE);
+      return;
+    }
+    setRestrictionMessage("");
     setDeepQuestion(resolved);
     setDeepCards([]);
     setDeepReading("");
@@ -78,7 +111,9 @@ export default function Home() {
 
   const startAnotherQuestion = () => {
     setNewQuestion("");
-    setStep("new-question");
+    setRestrictionMessage("");
+    setContextSelectionMode("new-question");
+    setStep("context");
   };
 
   const submitNewQuestion = () => {
@@ -94,12 +129,13 @@ export default function Home() {
   };
 
   const handleDeepReading = async () => {
-    if (deepCards.length !== 3 || deepQuestion.length < 10) return;
+    if (!readingContext || deepCards.length !== 3 || deepQuestion.length < 10) return;
     setStep("deep-result");
     setDeepReading("");
     try {
       const result = await submitDeepReadingMutation.mutateAsync({
         situation: deepQuestion,
+        context: readingContext,
         cards: deepCards.map(({ id, orientation }) => ({ id, orientation })),
       });
       setDeepReading(result.reading);
@@ -113,10 +149,22 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <main className="flex-1">
+        {step === "context" && (
+          <ContextSelectionSection
+            selectedContext={readingContext}
+            showBack={contextSelectionMode === "new-question"}
+            onBack={() => setStep("free-result")}
+            onSelect={selectReadingContext}
+          />
+        )}
         {step === "intro" && (
           <IntroSection
             question={originalQuestion}
-            onQuestionChange={setOriginalQuestion}
+            restrictionMessage={restrictionMessage}
+            onQuestionChange={value => {
+              setOriginalQuestion(value);
+              setRestrictionMessage("");
+            }}
             onStart={beginSingleDraw}
           />
         )}
@@ -155,7 +203,11 @@ export default function Home() {
         {step === "new-question" && (
           <NewQuestionSection
             question={newQuestion}
-            onQuestionChange={setNewQuestion}
+            restrictionMessage={restrictionMessage}
+            onQuestionChange={value => {
+              setNewQuestion(value);
+              setRestrictionMessage("");
+            }}
             onBack={() => setStep("free-result")}
             onContinue={submitNewQuestion}
           />
@@ -188,12 +240,52 @@ export default function Home() {
   );
 }
 
+function ContextSelectionSection({
+  selectedContext,
+  showBack,
+  onBack,
+  onSelect,
+}: {
+  selectedContext: ReadingContext | null;
+  showBack: boolean;
+  onBack: () => void;
+  onSelect: (context: ReadingContext) => void;
+}) {
+  return (
+    <section className="container max-w-2xl pt-12 pb-12 sm:pt-20 fade-in">
+      {showBack && (
+        <Button variant="ghost" onClick={onBack} className="mb-5 -ml-2 text-muted-foreground">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Volver a tu lectura
+        </Button>
+      )}
+      <div className="text-center">
+        <h1 className="font-serif text-3xl sm:text-4xl text-foreground leading-tight">Elegí el tema de tu consulta</h1>
+        <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          {(["love", "money_work"] as const).map(context => (
+            <Button
+              key={context}
+              variant={selectedContext === context ? "default" : "outline"}
+              size="lg"
+              className="h-14 text-base"
+              onClick={() => onSelect(context)}
+            >
+              {READING_CONTEXT_LABELS[context]}
+            </Button>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function IntroSection({
   question,
+  restrictionMessage,
   onQuestionChange,
   onStart,
 }: {
   question: string;
+  restrictionMessage: string;
   onQuestionChange: (value: string) => void;
   onStart: () => void;
 }) {
@@ -202,12 +294,10 @@ function IntroSection({
     <section className="container max-w-2xl pt-12 pb-12 sm:pt-20 fade-in">
       <div className="text-center">
         <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl leading-[1.1] tracking-tight text-foreground">
-          ¿Tu ex todavía
-          <br />
-          <span className="italic text-primary">siente algo?</span>
+          Haceme tu pregunta
         </h1>
         <p className="mt-7 text-base sm:text-lg text-muted-foreground leading-relaxed max-w-lg mx-auto">
-          Escribí lo que querés entender sobre ese vínculo y elegí una carta.
+          Escribí lo que querés saber y elegí una carta.
         </p>
         <label htmlFor="question" className="sr-only">Tu pregunta</label>
         <textarea
@@ -216,13 +306,14 @@ function IntroSection({
           onChange={event => onQuestionChange(event.target.value)}
           maxLength={500}
           rows={4}
-          placeholder="¿Qué querés preguntarle al tarot sobre esta relación?"
+          placeholder="¿Qué querés preguntarle al tarot?"
           className="mt-8 w-full rounded-lg border border-border/70 bg-card/70 px-4 py-3 text-left text-foreground placeholder:text-muted-foreground/70 shadow-sm outline-none transition focus:ring-2 focus:ring-primary/40 resize-none"
         />
         <div className="mt-2 flex justify-between text-xs text-muted-foreground">
           <span>Una pregunta concreta ayuda a enfocar la lectura.</span>
           <span>{question.length}/500</span>
         </div>
+        {restrictionMessage && <p role="alert" className="mt-4 text-left text-sm leading-relaxed text-destructive">{restrictionMessage}</p>}
         <div className="mt-8">
           <Button onClick={onStart} disabled={!canStart} size="lg" className="h-12 px-8 text-base font-medium">
             Elegir una carta
@@ -318,11 +409,13 @@ function CardSelectionSection({
 
 function NewQuestionSection({
   question,
+  restrictionMessage,
   onQuestionChange,
   onBack,
   onContinue,
 }: {
   question: string;
+  restrictionMessage: string;
   onQuestionChange: (value: string) => void;
   onBack: () => void;
   onContinue: () => void;
@@ -333,17 +426,22 @@ function NewQuestionSection({
       <Button variant="ghost" onClick={onBack} className="mb-5 -ml-2 text-muted-foreground">
         <ArrowLeft className="mr-2 h-4 w-4" /> Volver a tu lectura
       </Button>
-      <h1 className="font-serif text-3xl sm:text-4xl text-center text-foreground leading-tight">¿Qué querés preguntar?</h1>
+      <h1 className="font-serif text-3xl sm:text-4xl text-center text-foreground leading-tight">Haceme tu pregunta</h1>
+      <p className="mt-4 text-center text-muted-foreground">Escribí lo que querés saber y elegí una carta.</p>
       <textarea
         id="new-question"
         value={question}
         onChange={event => onQuestionChange(event.target.value)}
         maxLength={500}
         rows={4}
-        placeholder="Escribí tu nueva pregunta sobre este vínculo"
+        placeholder="¿Qué querés preguntarle al tarot?"
         className="mt-8 w-full rounded-lg border border-border/70 bg-card/70 px-4 py-3 text-left text-foreground placeholder:text-muted-foreground/70 shadow-sm outline-none transition focus:ring-2 focus:ring-primary/40 resize-none"
       />
-      <div className="mt-2 flex justify-end text-xs text-muted-foreground"><span>{question.length}/500</span></div>
+      <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+        <span>Una pregunta concreta ayuda a enfocar la lectura.</span>
+        <span>{question.length}/500</span>
+      </div>
+      {restrictionMessage && <p role="alert" className="mt-4 text-sm leading-relaxed text-destructive">{restrictionMessage}</p>}
       <Button onClick={onContinue} disabled={!canContinue} size="lg" className="mt-8 w-full h-12 text-base">
         Elegir tres cartas <ArrowRight className="ml-2 h-4 w-4" />
       </Button>

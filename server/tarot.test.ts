@@ -12,6 +12,13 @@ import {
   selectSingleCard,
   toggleDeepCards,
 } from "@shared/readingFlow";
+import {
+  getRestrictedQuestionCategory,
+  isRestrictedQuestion,
+  READING_CONTEXTS,
+  READING_CONTEXT_LABELS,
+  RESTRICTED_QUESTION_MESSAGE,
+} from "@shared/readingContext";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -20,6 +27,8 @@ import {
   buildReadingUserMessage,
   buildSingleCardUserMessage,
   countWords,
+  MONEY_WORK_SINGLE_CARD_SYSTEM_PROMPT,
+  MONEY_WORK_SYSTEM_PROMPT,
   parseSingleCardLLMResponse,
   SINGLE_CARD_RESPONSE_SCHEMA,
   SINGLE_CARD_SYSTEM_PROMPT,
@@ -213,6 +222,100 @@ describe("Bloque 2 — independencia entre tiradas", () => {
   });
 });
 
+describe("Bloque 3 — contextos y restricciones", () => {
+  it("define exactamente los contextos Amor y vínculos y Dinero y trabajo", () => {
+    expect(READING_CONTEXTS).toEqual(["love", "money_work"]);
+    expect(READING_CONTEXT_LABELS).toEqual({
+      love: "Amor y vínculos",
+      money_work: "Dinero y trabajo",
+    });
+  });
+
+  it("conserva la pregunta al profundizar y usa la nueva al reformular", () => {
+    expect(resolveDeepQuestion({
+      originalQuestion: "¿Qué siente por mí?",
+      newQuestion: "¿Cómo se ve este proyecto?",
+      useOriginalQuestion: true,
+    })).toBe("¿Qué siente por mí?");
+    expect(resolveDeepQuestion({
+      originalQuestion: "¿Qué siente por mí?",
+      newQuestion: "¿Cómo se ve este proyecto?",
+      useOriginalQuestion: false,
+    })).toBe("¿Cómo se ve este proyecto?");
+
+    const home = fs.readFileSync(path.resolve(import.meta.dirname, "../client/src/pages/Home.tsx"), "utf8");
+    expect(home).toContain('setContextSelectionMode("new-question")');
+    expect(home).toContain("setReadingContext(context)");
+  });
+
+  it("envía el contexto, las cartas y las orientaciones correctas para Dinero y trabajo", () => {
+    const moneySingle = buildSingleCardUserMessage("¿Cómo se ve esta sociedad comercial?", {
+      name: "Dos de Copas",
+      orientation: "upright",
+    }, "money_work");
+    const moneyDeep = buildReadingUserMessage("¿Cómo se ve esta sociedad comercial?", [
+      { name: "Dos de Copas", orientation: "upright" },
+      { name: "Los Enamorados", orientation: "reversed" },
+      { name: "La Emperatriz", orientation: "upright" },
+    ], "money_work");
+
+    expect(moneySingle).toContain("¿Cómo se ve esta sociedad comercial?");
+    expect(moneySingle).toContain("Dos de Copas — derecha");
+    expect(moneySingle).toContain("contexto de dinero y trabajo");
+    expect(moneyDeep).toContain("Los Enamorados — invertida");
+    expect(moneyDeep).toContain("contexto de dinero y trabajo");
+    expect(TAROT_DECK).toHaveLength(78);
+  });
+
+  it("mantiene los prompts aprobados de Amor y utiliza prompts propios para Dinero y trabajo", () => {
+    expect(SYSTEM_PROMPT).toContain("pregunta sobre una ex pareja o vínculo amoroso");
+    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("pregunta sobre una ex pareja o vínculo amoroso");
+    expect(MONEY_WORK_SYSTEM_PROMPT).toContain("dinero, trabajo, profesión, proyectos, negocios");
+    expect(MONEY_WORK_SYSTEM_PROMPT).toContain("No des asesoramiento financiero técnico");
+    expect(MONEY_WORK_SYSTEM_PROMPT).toContain("nunca puede superar 120 palabras");
+    expect(MONEY_WORK_SINGLE_CARD_SYSTEM_PROMPT).toContain("nunca puede superar 50 palabras");
+    expect(MONEY_WORK_SINGLE_CARD_SYSTEM_PROMPT).toContain("no des asesoramiento financiero técnico");
+    expect(MONEY_WORK_SYSTEM_PROMPT).toContain("No uses imperativos ni consejos personales");
+    expect(MONEY_WORK_SINGLE_CARD_SYSTEM_PROMPT).toContain("No uses imperativos ni consejos personales");
+    expect(MONEY_WORK_SYSTEM_PROMPT).not.toBe(SYSTEM_PROMPT);
+    expect(MONEY_WORK_SINGLE_CARD_SYSTEM_PROMPT).not.toBe(SINGLE_CARD_SYSTEM_PROMPT);
+  });
+
+  it("muestra el copy neutro y elimina referencias heredadas en la pantalla de pregunta", () => {
+    const home = fs.readFileSync(path.resolve(import.meta.dirname, "../client/src/pages/Home.tsx"), "utf8");
+    expect(home).toContain("Haceme tu pregunta");
+    expect(home).toContain("Escribí lo que querés saber y elegí una carta.");
+    expect(home).toContain("¿Qué querés preguntarle al tarot?");
+    expect(home).not.toContain("¿Tu ex todavía siente algo?");
+    expect(home).not.toContain("ese vínculo");
+    expect(home).not.toContain("esta relación");
+  });
+
+  it("bloquea consultas médicas, de embarazo y fertilidad", () => {
+    [
+      "¿Estoy embarazada?",
+      "¿Voy a quedar embarazada este año?",
+      "¿Tengo alguna enfermedad?",
+      "¿Voy a recuperarme de esta enfermedad?",
+      "¿Qué tratamiento me conviene?",
+      "¿Mi embarazo va a salir bien?",
+      "¿Tengo problemas de fertilidad?",
+      "¿Tengo diabetes?",
+    ].forEach(question => expect(isRestrictedQuestion(question)).toBe(true));
+    expect(getRestrictedQuestionCategory("¿Estoy embarazada?")).toBe("pregnancy_fertility");
+    expect(getRestrictedQuestionCategory("¿Tengo alguna enfermedad?")).toBe("health");
+  });
+
+  it("permite preguntas relacionales sobre hijos y familia", () => {
+    [
+      "¿Él quiere tener hijos conmigo?",
+      "¿Tenemos futuro formando una familia?",
+      "¿Cómo ve él la idea de tener hijos?",
+      "¿Quiere formar una familia conmigo?",
+    ].forEach(question => expect(isRestrictedQuestion(question)).toBe(false));
+  });
+});
+
 describe("tarot reading prompt", () => {
   it("incluye pregunta exacta y orientaciones, sin CARD_TEXTS ni meanings", () => {
     const prompt = buildReadingUserMessage("¿Qué siente por mí?", [
@@ -298,10 +401,12 @@ describe("tarot.submitReading input validation", () => {
     const caller = appRouter.createCaller(ctxAnon());
     await expect(caller.tarot.submitSingleCardReading({
       situation: "hola",
+      context: "love",
       card: { id: "fool", orientation: "upright" },
     })).rejects.toThrow();
     await expect(caller.tarot.submitSingleCardReading({
       situation: "Pregunta válida para probar una carta gratuita.",
+      context: "love",
       card: { id: "carta_inexistente", orientation: "reversed" },
     })).rejects.toThrow();
   });
@@ -311,6 +416,7 @@ describe("tarot.submitReading input validation", () => {
     await expect(
       caller.tarot.submitReading({
         situation: "hola",
+        context: "love",
         cardIds: ["lovers", "star", "moon"],
       }),
     ).rejects.toThrow();
@@ -321,9 +427,28 @@ describe("tarot.submitReading input validation", () => {
     await expect(
       caller.tarot.submitReading({
         situation: "Esta es una situación de prueba suficientemente larga.",
+        context: "money_work",
         cardIds: ["lovers", "star"],
       }),
     ).rejects.toThrow();
+  });
+
+  it("rechaza por tRPC las preguntas restringidas antes de normalizar cartas o invocar la lectura", async () => {
+    const caller = appRouter.createCaller(ctxAnon());
+    await expect(caller.tarot.submitSingleCardReading({
+      situation: "¿Estoy embarazada?",
+      context: "love",
+      card: { id: "empress", orientation: "upright" },
+    })).rejects.toThrow(RESTRICTED_QUESTION_MESSAGE);
+    await expect(caller.tarot.submitReading({
+      situation: "¿Qué tratamiento me conviene para esta enfermedad?",
+      context: "money_work",
+      cards: [
+        { id: "fool", orientation: "upright" },
+        { id: "magician", orientation: "reversed" },
+        { id: "world", orientation: "upright" },
+      ],
+    })).rejects.toThrow(RESTRICTED_QUESTION_MESSAGE);
   });
 });
 

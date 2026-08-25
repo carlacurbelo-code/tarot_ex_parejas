@@ -7,6 +7,11 @@ import {
   parseStoredSelection,
   type CardOrientation,
 } from "@shared/tarot";
+import {
+  isRestrictedQuestion,
+  RESTRICTED_QUESTION_MESSAGE,
+  type ReadingContext,
+} from "@shared/readingContext";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
@@ -47,6 +52,22 @@ No presentes el tarot como certeza factual. En preguntas sobre otra persona, us�
 
 Devolvé exactamente un campo: "reading". Debe ser una respuesta real, completa y autosuficiente. No agregues otro campo, título, pregunta, recomendación de compra ni texto adicional.`;
 
+export const MONEY_WORK_SYSTEM_PROMPT = `Sos una tarotista experimentada, clara y cercana. Escribí en español conversacional, natural y sencillo, hablándole de "vos" a la persona. Respondé únicamente su pregunta sobre dinero, trabajo, profesión, proyectos, negocios, ventas, compras, sociedades o inversiones según las tres cartas Rider-Waite-Smith y sus orientaciones.
+
+La lectura debe tener entre 80 y 120 palabras y nunca puede superar 120 palabras. No rellenes para alcanzar el límite: si la respuesta queda completa con menos palabras, sé breve. Antes de responder, verificá que la extensión esté dentro del límite. La primera oración debe contestar directamente la pregunta con la tendencia que muestran las cartas. No empieces con una introducción emocional, no reformules la situación y no expliques qué es el tarot.
+
+Interpretá las tres cartas juntas. Explicá brevemente cómo se combinan, se contradicen o se refuerzan para responder la cuestión laboral, económica, profesional o empresarial. No hagas tres definiciones separadas ni escribas un ensayo sobre cada carta. Las cartas invertidas deben cambiar la lectura según el contexto, pero no son automáticamente negativas. Conservá la profundidad del razonamiento, usando palabras cotidianas.
+
+Si la pregunta trata sobre una inversión, compra, venta o negocio, interpretala solamente desde la tirada: podés señalar una tendencia favorable, desfavorable, prudente, abierta o bloqueada si las cartas lo muestran. Para decisiones, usá formulaciones como "la tirada se presenta prudente" o "la tendencia aparece favorable"; no des instrucciones ni recomendaciones personales. Describí cartas, panorama, proyecto, escenario o dinámica; no hagas afirmaciones personales sobre la persona ni uses frases como "tenés", "te falta", "tu resistencia" o "vos necesitás". No presentes resultados futuros como hechos: preferí "la tendencia muestra" o "el panorama sugiere". No des asesoramiento financiero técnico ni recomiendes porcentajes, carteras, instrumentos, acciones, criptomonedas, ETFs o productos específicos. No uses imperativos ni consejos personales como "apostá", "es el momento ideal", "sin miedo", "te conviene", "retener", "evaluar" o equivalentes. No uses coaching, discursos motivacionales, lenguaje terapéutico, poesía, metáforas innecesarias, misticismo cliché, palabras sofisticadas, títulos, viñetas, emojis, relleno ni preguntas reflexivas. No repitas la conclusión. Cerrá con una síntesis concreta y directa.`;
+
+export const MONEY_WORK_SINGLE_CARD_SYSTEM_PROMPT = `Sos una tarotista experimentada, clara y cercana. Escribí en español conversacional, natural y sencillo, hablándole de "vos" a la persona. Respondé únicamente su pregunta sobre dinero, trabajo, profesión, proyectos, negocios, ventas, compras, sociedades o inversiones a partir de UNA carta del Rider-Waite-Smith y su orientación.
+
+"reading" debe tener idealmente entre 35 y 50 palabras y nunca puede superar 50 palabras. Respondé la pregunta desde la primera frase. Interpretá esa carta específicamente para esa consulta e incluí solamente el matiz relevante. No expliques significados generales innecesarios, no repitas la misma idea, no rellenes para llegar a una extensión y priorizá la síntesis incluso con Arcanos Mayores.
+
+Si la pregunta trata sobre una inversión, compra, venta o negocio, respondé desde lo que sugiere la carta y no des asesoramiento financiero técnico ni recomiendes porcentajes, carteras, instrumentos, acciones, criptomonedas, ETFs o productos específicos. Para decisiones, expresá la tendencia de la carta sin instruir qué hacer. Describí la carta, el panorama o el proyecto y no hagas afirmaciones personales sobre la persona. No uses imperativos ni consejos personales como "apostá", "es el momento ideal", "sin miedo", "te conviene", "retener", "evaluar" o equivalentes. No uses "vas a" como certeza: usá "la tendencia sugiere" o "el panorama se presenta". Usá solamente español conversacional natural; no introduzcas anglicismos. No uses coaching, introducciones emocionales, lenguaje terapéutico, poesía, misticismo cliché, frases de autoayuda, palabras artificialmente sofisticadas, relleno, repeticiones, títulos, viñetas, emojis ni preguntas reflexivas.
+
+Devolvé exactamente un campo: "reading". Debe ser una respuesta real, completa y autosuficiente. No agregues otro campo, título, pregunta, recomendación de compra ni texto adicional.`;
+
 export const SINGLE_CARD_RESPONSE_SCHEMA = {
   type: "json_schema" as const,
   json_schema: {
@@ -66,6 +87,7 @@ export const SINGLE_CARD_RESPONSE_SCHEMA = {
 export function buildReadingUserMessage(
   question: string,
   cards: readonly { name: string; orientation: CardOrientation }[],
+  context: ReadingContext = "love",
 ): string {
   return `La pregunta exacta de la persona es:
 "${question}"
@@ -75,12 +97,13 @@ Las tres cartas de la tirada abierta son:
 2. ${cards[1]?.name ?? "Carta 2"} — ${cards[1] ? orientationLabel(cards[1].orientation) : "derecha"}
 3. ${cards[2]?.name ?? "Carta 3"} — ${cards[2] ? orientationLabel(cards[2].orientation) : "derecha"}
 
-Interpretá las tres cartas como un sistema integrado, sin usar significados prefabricados, y respondé exclusivamente desde el contexto afectivo de la pregunta.`;
+Interpretá las tres cartas como un sistema integrado, sin usar significados prefabricados, y respondé exclusivamente desde el ${context === "money_work" ? "contexto de dinero y trabajo" : "contexto afectivo"} de la pregunta.`;
 }
 
 export function buildSingleCardUserMessage(
   question: string,
   card: { name: string; orientation: CardOrientation },
+  context: ReadingContext = "love",
 ): string {
   return `La pregunta exacta de la persona es:
 "${question}"
@@ -88,7 +111,16 @@ export function buildSingleCardUserMessage(
 La carta única de la tirada abierta es:
 ${card.name} — ${orientationLabel(card.orientation)}
 
-Respondé exclusivamente desde el contexto afectivo de la pregunta. La lectura debe ser completa por sí misma.`;
+Respondé exclusivamente desde el ${context === "money_work" ? "contexto de dinero y trabajo" : "contexto afectivo"} de la pregunta. La lectura debe ser completa por sí misma.`;
+}
+
+function rejectRestrictedQuestion(situation: string): void {
+  if (isRestrictedQuestion(situation)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: RESTRICTED_QUESTION_MESSAGE,
+    });
+  }
 }
 
 type SingleCardLLMResponse = {
@@ -153,12 +185,14 @@ export const appRouter = router({
     submitSingleCardReading: publicProcedure
       .input(z.object({
         situation: z.string().min(10).max(500),
+        context: z.enum(["love", "money_work"]),
         card: z.object({
           id: z.string(),
           orientation: z.enum(["upright", "reversed"]),
         }),
       }))
       .mutation(async ({ input }) => {
+        rejectRestrictedQuestion(input.situation);
         const cards = normalizeSelection([input.card]);
         const card = cards[0];
         if (!card || cards.length !== 1) {
@@ -168,8 +202,8 @@ export const appRouter = router({
         try {
           const response = await invokeLLM({
             messages: [
-              { role: "system", content: SINGLE_CARD_SYSTEM_PROMPT },
-              { role: "user", content: buildSingleCardUserMessage(input.situation, card) },
+              { role: "system", content: input.context === "money_work" ? MONEY_WORK_SINGLE_CARD_SYSTEM_PROMPT : SINGLE_CARD_SYSTEM_PROMPT },
+              { role: "user", content: buildSingleCardUserMessage(input.situation, card, input.context) },
             ],
             response_format: SINGLE_CARD_RESPONSE_SCHEMA,
           });
@@ -204,6 +238,7 @@ export const appRouter = router({
     submitReading: publicProcedure
       .input(z.object({
         situation: z.string().min(10).max(800),
+        context: z.enum(["love", "money_work"]),
         cardIds: z.array(z.string()).length(3).optional(),
         cards: z.array(z.object({
           id: z.string(),
@@ -213,6 +248,7 @@ export const appRouter = router({
         message: "Se requieren tres cartas",
       }))
       .mutation(async ({ input }) => {
+        rejectRestrictedQuestion(input.situation);
         const cards = input.cards
           ? normalizeSelection(input.cards)
           : assignOrientations(normalizeSelection((input.cardIds ?? []).map(id => ({ id }))));
@@ -229,13 +265,13 @@ export const appRouter = router({
         });
 
         // Generar lectura con LLM
-        const userMsg = buildReadingUserMessage(input.situation, cards);
+        const userMsg = buildReadingUserMessage(input.situation, cards, input.context);
 
         let reading = "";
         try {
           const resp = await invokeLLM({
             messages: [
-              { role: "system", content: SYSTEM_PROMPT },
+              { role: "system", content: input.context === "money_work" ? MONEY_WORK_SYSTEM_PROMPT : SYSTEM_PROMPT },
               { role: "user", content: userMsg },
             ],
           });
