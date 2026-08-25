@@ -42,7 +42,7 @@ export function TarotCardView({
       disabled={!isClickable}
       aria-label={back ? "Carta boca abajo" : `${name ?? "Carta"}${orientation === "reversed" && revealed ? ", invertida" : ", derecha"}`}
       className={cn(
-        "relative flex select-none flex-col items-center justify-center overflow-hidden rounded-[1.05rem] border-[1.5px] transition-all duration-200",
+        "relative flex select-none flex-col items-center justify-center overflow-hidden rounded-[1.05rem] border-[1.5px] transition-[border-color,box-shadow] duration-200",
         sizeMap[size],
         back
           ? "border-[oklch(0.83_0.065_317)] bg-[radial-gradient(circle_at_22%_18%,oklch(0.91_0.075_316/.95),transparent_30%),radial-gradient(circle_at_79%_74%,oklch(0.9_0.06_173/.8),transparent_36%),linear-gradient(145deg,oklch(0.86_0.045_313),oklch(0.78_0.06_288))] text-[oklch(0.42_0.075_300)] shadow-[0_12px_24px_oklch(0.1_0.03_300/.28),inset_0_1px_0_oklch(1_0_0/.72)]"

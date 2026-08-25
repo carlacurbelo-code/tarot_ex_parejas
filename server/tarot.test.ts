@@ -152,6 +152,8 @@ describe("tarot deck integrity", () => {
     );
     expect(component).toContain('orientation === "reversed"');
     expect(component).toContain('isReversed && "rotate-180"');
+    expect(component).toContain('transition-[border-color,box-shadow] duration-200');
+    expect(component).not.toContain('transition-all duration-200');
   });
 
   it("baraja mazos visibles independientes antes de cada cuadrícula de Home", () => {

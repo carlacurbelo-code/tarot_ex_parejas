@@ -180,3 +180,10 @@
 - [x] Localizar por qué una carta invertida no rota en el estado «Ver mi lectura».
 - [x] Corregir únicamente la prop o representación visual del resultado, sin alterar selección, orientación ni flujo.
 - [x] Verificar selector y resultado de una/tres cartas con invertidas; ejecutar validaciones y documentar.
+
+## Lote piloto — ilustraciones del mazo Tarot de Medianoche
+- [x] Consolidar el sistema visual pastel editorial de las referencias como guía fija del mazo.
+- [x] Retirar la transición de rotación de las cartas invertidas sin quitar su orientación visual de 180°.
+- [x] Generar el lote piloto: El Sol, La Torre, Dos de Copas, Tres de Espadas y Reina de Oros.
+- [x] Verificar que las cinco ilustraciones mantienen proporción, títulos en español, símbolos esenciales y coherencia visual.
+- [ ] Presentar el lote piloto para aprobación antes de producir las 78 cartas e integrarlas en la aplicación.
