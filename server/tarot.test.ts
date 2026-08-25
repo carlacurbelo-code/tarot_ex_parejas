@@ -210,7 +210,6 @@ describe("Bloque 2 — independencia entre tiradas", () => {
     expect(handler).toContain("situation: deepQuestion");
     expect(handler).toContain("cards: deepCards.map");
     expect(handler).not.toContain("freeReading");
-    expect(handler).not.toContain("deepeningHook");
   });
 });
 
@@ -246,49 +245,38 @@ describe("tarot single-card reading contract", () => {
     expect(prompt).toContain("La Torre — invertida");
   });
 
-  it("define una respuesta estructurada con reading y deepening_hook", () => {
+  it("define una respuesta estructurada únicamente con reading", () => {
     expect(SINGLE_CARD_RESPONSE_SCHEMA.json_schema.schema).toMatchObject({
-      required: ["reading", "deepening_hook"],
+      required: ["reading"],
       additionalProperties: false,
     });
     expect(parseSingleCardLLMResponse(JSON.stringify({
       reading: "La carta sugiere una pausa antes de un movimiento concreto.",
-      deepening_hook: "Una lectura más amplia puede mirar qué sostiene esta pausa en el vínculo.",
     }))).toEqual({
       reading: "La carta sugiere una pausa antes de un movimiento concreto.",
-      deepening_hook: "Una lectura más amplia puede mirar qué sostiene esta pausa en el vínculo.",
     });
+    expect(() => parseSingleCardLLMResponse(JSON.stringify({
+      reading: "La carta sugiere una pausa antes de un movimiento concreto.",
+      extra: "No debe formar parte del contrato",
+    }))).toThrow();
   });
 
-  it("impone los límites absolutos de 50 palabras para reading y 25 para hook", () => {
+  it("impone el límite absoluto de 50 palabras para reading", () => {
     const validReading = Array.from({ length: 50 }, (_, index) => `palabra${index}`).join(" ");
-    const validHook = Array.from({ length: 25 }, (_, index) => `hook${index}`).join(" ");
     expect(countWords(validReading)).toBe(50);
-    expect(countWords(validHook)).toBe(25);
     expect(parseSingleCardLLMResponse(JSON.stringify({
       reading: validReading,
-      deepening_hook: validHook,
-    }))).toEqual({ reading: validReading, deepening_hook: validHook });
+    }))).toEqual({ reading: validReading });
     expect(() => parseSingleCardLLMResponse(JSON.stringify({
       reading: `${validReading} extra`,
-      deepening_hook: validHook,
-    }))).toThrow("excede los límites");
-    expect(() => parseSingleCardLLMResponse(JSON.stringify({
-      reading: validReading,
-      deepening_hook: `${validHook} extra`,
-    }))).toThrow("excede los límites");
+    }))).toThrow("excede el límite");
   });
 
-  it("explicita síntesis y una incógnita concreta en el prompt de una carta", () => {
+  it("explicita síntesis y respuesta autosuficiente en el prompt de una carta", () => {
     expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("35 y 50 palabras");
     expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("nunca puede superar 50 palabras");
-    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("máximo absoluto de 25 palabras");
-    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("cuál incógnita relevante queda abierta");
-    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("Nunca lo conviertas en un sintagma nominal");
-    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("dato específico pendiente");
     expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("no introduzcas anglicismos");
-    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("datos ocultos");
-    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("gramatical, idiomática y natural en español rioplatense");
+    expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("respuesta real, completa y autosuficiente");
   });
 
   it("muestra mensajes de carga distintos para una carta y para tres cartas", () => {
@@ -299,7 +287,8 @@ describe("tarot single-card reading contract", () => {
   });
 
   it("rechaza una respuesta de una carta incompleta o inválida", () => {
-    expect(() => parseSingleCardLLMResponse('{"reading":"Solo lectura"}')).toThrow();
+    expect(() => parseSingleCardLLMResponse("{}")).toThrow();
+    expect(() => parseSingleCardLLMResponse('{"reading":""}')).toThrow();
     expect(() => parseSingleCardLLMResponse("texto plano")).toThrow();
   });
 });

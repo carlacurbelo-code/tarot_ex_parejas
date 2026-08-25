@@ -124,3 +124,10 @@
 - [x] Diferenciar los mensajes de carga de una carta y tres cartas sin modificar ninguna otra funcionalidad.
 - [x] Ejecutar y registrar cinco pruebas reales de una carta con lectura, conteo y hook.
 - [x] Verificar visualmente ambos mensajes de carga y ejecutar TypeScript y Vitest antes de detenerse.
+
+## Corrección final Bloque 2 — eliminar deepening_hook
+- [x] Localizar todas las referencias de `deepening_hook` en prompt, contrato, backend, frontend, estado y pruebas.
+- [x] Eliminar `deepening_hook` por completo del prompt, esquema JSON, parser y respuesta de una carta sin llamada LLM adicional.
+- [x] Eliminar estado, recuadro y lógica de interfaz asociada, manteniendo las acciones de profundizar y nueva pregunta.
+- [x] Actualizar pruebas y verificar que ambas ramas generan una tirada profunda independiente con la pregunta correcta.
+- [x] Ejecutar TypeScript, build y Vitest; documentar la eliminación completa y detenerse.

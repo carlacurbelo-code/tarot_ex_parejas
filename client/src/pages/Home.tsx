@@ -26,7 +26,6 @@ export default function Home() {
   const [singleCard, setSingleCard] = useState<TarotSelection | null>(null);
   const [deepCards, setDeepCards] = useState<TarotSelection[]>([]);
   const [freeReading, setFreeReading] = useState("");
-  const [deepeningHook, setDeepeningHook] = useState("");
   const [deepReading, setDeepReading] = useState("");
   const submitSingleReading = trpc.tarot.submitSingleCardReading.useMutation();
   const submitDeepReadingMutation = trpc.tarot.submitReading.useMutation();
@@ -34,7 +33,6 @@ export default function Home() {
   const beginSingleDraw = () => {
     setSingleCard(null);
     setFreeReading("");
-    setDeepeningHook("");
     setSingleDeck(createIndependentReadingDeck());
     setStep("single-cards");
   };
@@ -47,14 +45,12 @@ export default function Home() {
     if (!singleCard || originalQuestion.trim().length < 10) return;
     setStep("free-result");
     setFreeReading("");
-    setDeepeningHook("");
     try {
       const result = await submitSingleReading.mutateAsync({
         situation: originalQuestion.trim(),
         card: { id: singleCard.id, orientation: singleCard.orientation },
       });
       setFreeReading(result.reading);
-      setDeepeningHook(result.deepening_hook);
     } catch (error) {
       console.error(error);
       setFreeReading("No pude completar la lectura en este momento. Volvé a intentarlo en unos segundos.");
@@ -144,7 +140,6 @@ export default function Home() {
             eyebrow="Tu lectura"
             title="Lo que dice tu carta"
             onBack={() => setStep("single-cards")}
-            deepeningHook={deepeningHook}
             actions={
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
                 <Button size="lg" className="h-12 text-base" onClick={deepenOriginalQuestion}>
@@ -364,7 +359,6 @@ function ReadingResultSection({
   eyebrow,
   title,
   onBack,
-  deepeningHook,
   actions,
 }: {
   cards: TarotSelection[];
@@ -373,7 +367,6 @@ function ReadingResultSection({
   eyebrow: string;
   title: string;
   onBack: () => void;
-  deepeningHook?: string;
   actions?: React.ReactNode;
 }) {
   const loadingMessage = cards.length === 1
@@ -411,12 +404,7 @@ function ReadingResultSection({
         )}
       </Card>
 
-      {deepeningHook && !loading && (
-        <Card className="mt-6 p-5 sm:p-6 bg-secondary/35 border-border/60 shadow-sm">
-          <p className="text-sm leading-relaxed text-foreground">{deepeningHook}</p>
-          {actions}
-        </Card>
-      )}
+      {!loading && actions}
     </section>
   );
 }

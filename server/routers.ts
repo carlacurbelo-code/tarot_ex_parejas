@@ -45,20 +45,19 @@ export const SINGLE_CARD_SYSTEM_PROMPT = `Sos una tarotista experimentada, clara
 
 No presentes el tarot como certeza factual. En preguntas sobre otra persona, usá "la carta sugiere", "podría mostrar" o "el vínculo parece"; no afirmes pensamientos, sentimientos, motivos o acciones de terceros como hechos. Usá solamente español conversacional natural; no introduzcas anglicismos. No uses introducciones emocionales, coaching, lenguaje terapéutico, poesía, misticismo cliché, frases de autoayuda, palabras artificialmente sofisticadas, relleno, repeticiones, títulos, viñetas, emojis ni preguntas reflexivas.
 
-Devolvé exactamente dos campos: "reading" y "deepening_hook". "reading" debe ser una respuesta real, completa y autosuficiente. "deepening_hook" debe ser una sola oración breve, dinámica y de un máximo absoluto de 25 palabras. Debe decir concretamente cuál incógnita relevante queda abierta tras una carta —por ejemplo, una intención, acción, bloqueo, motivo, impulso o cierre— según la pregunta, la carta, su orientación y la lectura. Expresá esa incógnita con un verbo conjugado: el hook debe afirmar directamente qué falta saber, qué todavía no se puede determinar o qué podría cambiar. Nunca lo conviertas en un sintagma nominal; si pudiera funcionar como título, reescribilo como una oración que nombre el dato específico pendiente. Antes de responder, revisá que cada oración sea gramatical, idiomática y natural en español rioplatense; no uses combinaciones forzadas de infinitivos, sustantivos o pronombres. No uses formulaciones abstractas o genéricas como "dimensión", "proceso emocional", "analizar en mayor profundidad", "explorar con mayor detalle", "comprender mejor la dinámica" u "obtener mayor claridad", ni equivalentes. El hook no debe inventar una pregunta, no debe ser una pregunta, no debe prometer revelaciones, no debe sugerir secretos, datos ocultos, terceras personas, engaños o peligros sin fundamento, no debe generar miedo ni contradecir la lectura. No mencionés pago, compra, precio ni una lectura bloqueada.`;
+Devolvé exactamente un campo: "reading". Debe ser una respuesta real, completa y autosuficiente. No agregues otro campo, título, pregunta, recomendación de compra ni texto adicional.`;
 
 export const SINGLE_CARD_RESPONSE_SCHEMA = {
   type: "json_schema" as const,
   json_schema: {
     name: "single_card_love_reading",
     strict: true,
-    schema: {
-      type: "object",
-      properties: {
-        reading: { type: "string" },
-        deepening_hook: { type: "string" },
-      },
-      required: ["reading", "deepening_hook"],
+      schema: {
+        type: "object",
+        properties: {
+          reading: { type: "string" },
+        },
+      required: ["reading"],
       additionalProperties: false,
     },
   },
@@ -89,12 +88,11 @@ export function buildSingleCardUserMessage(
 La carta única de la tirada abierta es:
 ${card.name} — ${orientationLabel(card.orientation)}
 
-Respondé exclusivamente desde el contexto afectivo de la pregunta. La lectura debe ser completa por sí misma y el hook debe indicar sólo una dimensión posible para profundizar, sin formular ni imponer una pregunta siguiente.`;
+Respondé exclusivamente desde el contexto afectivo de la pregunta. La lectura debe ser completa por sí misma.`;
 }
 
 type SingleCardLLMResponse = {
   reading: string;
-  deepening_hook: string;
 };
 
 export function countWords(value: string): number {
@@ -106,21 +104,24 @@ export function parseSingleCardLLMResponse(raw: string): SingleCardLLMResponse {
   if (
     !parsed ||
     typeof parsed !== "object" ||
-    !("reading" in parsed) ||
-    !("deepening_hook" in parsed) ||
-    typeof parsed.reading !== "string" ||
-    typeof parsed.deepening_hook !== "string" ||
-    !parsed.reading.trim() ||
-    !parsed.deepening_hook.trim()
+    Array.isArray(parsed)
   ) {
     throw new Error("La respuesta estructurada de una carta es inválida");
   }
-  const reading = parsed.reading.trim();
-  const deepeningHook = parsed.deepening_hook.trim();
-  if (countWords(reading) > 50 || countWords(deepeningHook) > 25) {
-    throw new Error("La respuesta de una carta excede los límites de palabras");
+  const response = parsed as Record<string, unknown>;
+  if (
+    Object.keys(response).length !== 1 ||
+    !("reading" in response) ||
+    typeof response.reading !== "string" ||
+    !response.reading.trim()
+  ) {
+    throw new Error("La respuesta estructurada de una carta es inválida");
   }
-  return { reading, deepening_hook: deepeningHook };
+  const reading = response.reading.trim();
+  if (countWords(reading) > 50) {
+    throw new Error("La lectura de una carta excede el límite de palabras");
+  }
+  return { reading };
 }
 
 export const appRouter = router({
