@@ -170,3 +170,8 @@
 - [x] Identificar dependencias propietarias de Manus y definir reemplazos compatibles con Node/Express.
 - [x] Documentar despliegue portable, plan de salida, riesgos y pasos sin ejecutar una migración.
 - [x] Validar la documentación, guardar el resultado de la auditoría y entregarlo.
+
+## Ajuste puntual — estética de cartas pastel editorial
+- [x] Revisar el componente de carta y los tokens que lo afectan sin alterar datos, selección ni orientación.
+- [x] Aplicar únicamente a las cartas una superficie pastel lavanda/menta, marco doble, iluminación suave y tipografía editorial inspiradas en la referencia.
+- [x] Verificar en móvil y escritorio las cartas derecha/invertida, selección y presentación de una/tres cartas; ejecutar validaciones y documentar.
