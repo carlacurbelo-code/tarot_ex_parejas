@@ -16,7 +16,7 @@ import {
   type ReadingContext,
 } from "@shared/readingContext";
 import type { CardOrientation, TarotCard, TarotSelection } from "@shared/tarot";
-import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, BriefcaseBusiness, Heart, Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -102,11 +102,7 @@ export default function Home() {
   };
 
   const deepenOriginalQuestion = () => {
-    beginDeepDraw(resolveDeepQuestion({
-      originalQuestion,
-      newQuestion,
-      useOriginalQuestion: true,
-    }));
+    beginDeepDraw(resolveDeepQuestion({ originalQuestion, newQuestion, useOriginalQuestion: true }));
   };
 
   const startAnotherQuestion = () => {
@@ -117,11 +113,7 @@ export default function Home() {
   };
 
   const submitNewQuestion = () => {
-    beginDeepDraw(resolveDeepQuestion({
-      originalQuestion,
-      newQuestion,
-      useOriginalQuestion: false,
-    }));
+    beginDeepDraw(resolveDeepQuestion({ originalQuestion, newQuestion, useOriginalQuestion: false }));
   };
 
   const toggleDeepCard = (card: TarotCard) => {
@@ -147,7 +139,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="tarot-shell flex min-h-screen flex-col">
       <main className="flex-1">
         {step === "context" && (
           <ContextSelectionSection
@@ -190,10 +182,10 @@ export default function Home() {
             onBack={() => setStep("single-cards")}
             actions={
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <Button size="lg" className="h-12 text-base" onClick={deepenOriginalQuestion}>
+                <Button size="lg" className="tarot-primary-action h-14 text-base font-semibold" onClick={deepenOriginalQuestion}>
                   Profundizar esta lectura <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-                <Button variant="outline" size="lg" className="h-12 text-base" onClick={startAnotherQuestion}>
+                <Button variant="outline" size="lg" className="tarot-secondary-action h-14 text-base" onClick={startAnotherQuestion}>
                   Hacer otra pregunta
                 </Button>
               </div>
@@ -252,26 +244,38 @@ function ContextSelectionSection({
   onSelect: (context: ReadingContext) => void;
 }) {
   return (
-    <section className="container max-w-2xl pt-12 pb-12 sm:pt-20 fade-in">
+    <section className="tarot-page max-w-3xl py-10 sm:py-20 fade-in">
       {showBack && (
-        <Button variant="ghost" onClick={onBack} className="mb-5 -ml-2 text-muted-foreground">
+        <Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground">
           <ArrowLeft className="mr-2 h-4 w-4" /> Volver a tu lectura
         </Button>
       )}
-      <div className="text-center">
-        <h1 className="font-serif text-3xl sm:text-4xl text-foreground leading-tight">Elegí el tema de tu consulta</h1>
-        <div className="mt-8 grid gap-3 sm:grid-cols-2">
-          {(["love", "money_work"] as const).map(context => (
-            <Button
-              key={context}
-              variant={selectedContext === context ? "default" : "outline"}
-              size="lg"
-              className="h-14 text-base"
-              onClick={() => onSelect(context)}
-            >
-              {READING_CONTEXT_LABELS[context]}
-            </Button>
-          ))}
+      <div className="tarot-surface relative overflow-hidden px-5 py-10 text-center sm:px-12 sm:py-15">
+        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[var(--tarot-accent)]/80 to-transparent" />
+        <p className="tarot-kicker flex items-center justify-center gap-2"><Sparkles className="h-3.5 w-3.5" /> Tarot de Medianoche</p>
+        <h1 className="mt-5 font-serif text-4xl leading-[0.95] text-foreground sm:text-6xl">Elegí el tema<br className="hidden sm:block" /> de tu consulta</h1>
+        <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">Una lectura clara para mirar lo que está en movimiento.</p>
+        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+          {(["love", "money_work"] as const).map(context => {
+            const isLove = context === "love";
+            const Icon = isLove ? Heart : BriefcaseBusiness;
+            return (
+              <button
+                key={context}
+                type="button"
+                aria-pressed={selectedContext === context}
+                className="group relative min-h-40 overflow-hidden rounded-[var(--tarot-radius-md)] border border-[var(--tarot-border)] bg-[linear-gradient(145deg,oklch(0.29_0.05_314_/_80%),oklch(0.215_0.038_309_/_92%))] p-5 text-left shadow-[var(--tarot-shadow)] transition duration-200 hover:-translate-y-1 hover:border-[var(--tarot-accent)]/80 hover:shadow-[var(--tarot-shadow-lift)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => onSelect(context)}
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--tarot-border)] bg-[var(--tarot-surface-elevated)] text-[var(--tarot-accent-hover)] transition group-hover:scale-105">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="mt-8 block text-xs font-semibold tracking-[0.16em] text-[var(--tarot-ink-muted)]">{isLove ? "VÍNCULOS" : "PROYECTOS"}</span>
+                <span className="mt-2 block font-serif text-2xl leading-none text-foreground">{READING_CONTEXT_LABELS[context]}</span>
+                <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[var(--tarot-accent-hover)] transition-transform group-hover:translate-x-1" />
+              </button>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -291,14 +295,11 @@ function IntroSection({
 }) {
   const canStart = question.trim().length >= 10;
   return (
-    <section className="container max-w-2xl pt-12 pb-12 sm:pt-20 fade-in">
-      <div className="text-center">
-        <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl leading-[1.1] tracking-tight text-foreground">
-          Haceme tu pregunta
-        </h1>
-        <p className="mt-7 text-base sm:text-lg text-muted-foreground leading-relaxed max-w-lg mx-auto">
-          Escribí lo que querés saber y elegí una carta.
-        </p>
+    <section className="tarot-page max-w-2xl py-10 sm:py-20 fade-in">
+      <div className="tarot-surface px-5 py-10 sm:px-10 sm:py-14">
+        <p className="tarot-kicker text-center">Tarot de Medianoche</p>
+        <h1 className="mt-4 text-center font-serif text-4xl leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl">Haceme tu pregunta</h1>
+        <p className="mx-auto mt-5 max-w-lg text-center text-base leading-relaxed text-muted-foreground sm:text-lg">Escribí lo que querés saber y elegí una carta.</p>
         <label htmlFor="question" className="sr-only">Tu pregunta</label>
         <textarea
           id="question"
@@ -307,28 +308,26 @@ function IntroSection({
           maxLength={500}
           rows={4}
           placeholder="¿Qué querés preguntarle al tarot?"
-          className="mt-8 w-full rounded-lg border border-border/70 bg-card/70 px-4 py-3 text-left text-foreground placeholder:text-muted-foreground/70 shadow-sm outline-none transition focus:ring-2 focus:ring-primary/40 resize-none"
+          className="mt-8 w-full resize-none rounded-[var(--tarot-radius-sm)] border border-[var(--tarot-border)] bg-[oklch(0.17_0.032_307_/_78%)] px-4 py-4 text-left text-foreground shadow-inner outline-none transition placeholder:text-muted-foreground/70 focus:border-[var(--tarot-accent)] focus:ring-2 focus:ring-[var(--tarot-accent)]/25"
         />
         <div className="mt-2 flex justify-between text-xs text-muted-foreground">
           <span>Una pregunta concreta ayuda a enfocar la lectura.</span>
           <span>{question.length}/500</span>
         </div>
-        {restrictionMessage && <p role="alert" className="mt-4 text-left text-sm leading-relaxed text-destructive">{restrictionMessage}</p>}
-        <div className="mt-8">
-          <Button onClick={onStart} disabled={!canStart} size="lg" className="h-12 px-8 text-base font-medium">
-            Elegir una carta
-            <ArrowRight className="ml-2 h-4 w-4" />
+        {restrictionMessage && <p role="alert" className="tarot-surface-elevated mt-5 px-4 py-3 text-left text-sm leading-relaxed text-destructive">{restrictionMessage}</p>}
+        <div className="mt-8 text-center">
+          <Button onClick={onStart} disabled={!canStart} size="lg" className="tarot-primary-action h-14 px-8 text-base font-semibold">
+            Elegir una carta <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
           <p className="mt-4 text-xs text-muted-foreground">Lectura inicial gratuita · sin registro</p>
         </div>
       </div>
-
-      <div className="mt-16 grid grid-cols-3 gap-4 sm:gap-6 max-w-md mx-auto">
+      <div className="mx-auto mt-10 grid max-w-xs grid-cols-3 gap-3 sm:gap-5">
         {["☾", "♡", "✦"].map((symbol, index) => (
           <div
             key={symbol}
-            className="aspect-[2/3] rounded-lg bg-gradient-to-br from-[oklch(0.42_0.04_240)] to-[oklch(0.32_0.035_245)] flex items-center justify-center text-3xl text-[oklch(0.78_0.045_55)]/70 shadow-sm"
-            style={{ animation: `fadeIn 0.8s ${index * 0.15}s both cubic-bezier(0.23, 1, 0.32, 1)` }}
+            className="flex aspect-[2/3] items-center justify-center rounded-[var(--tarot-radius-sm)] border border-[var(--tarot-border)] bg-[linear-gradient(145deg,var(--tarot-surface-elevated),var(--tarot-night))] text-3xl text-[var(--tarot-accent-hover)]/75 shadow-[var(--tarot-shadow)]"
+            style={{ animation: `fadeIn 0.32s ${index * 0.08}s both cubic-bezier(0.23, 1, 0.32, 1)` }}
           >
             {symbol}
           </div>
@@ -364,14 +363,16 @@ function CardSelectionSection({
     : `${requiredCount === 1 ? "Carta elegida." : "Tres cartas elegidas."}`;
 
   return (
-    <section className="container max-w-3xl pt-8 pb-24 fade-in">
-      <Button variant="ghost" onClick={onBack} className="mb-5 -ml-2 text-muted-foreground">
+    <section className="tarot-page max-w-5xl py-7 pb-24 fade-in">
+      <Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground">
         <ArrowLeft className="mr-2 h-4 w-4" /> Volver a la pregunta
       </Button>
-      <h2 className="font-serif text-3xl sm:text-4xl leading-tight text-foreground text-center">{title}</h2>
-      <p className="mt-3 text-center text-muted-foreground">{selectionText}</p>
-
-      <div className="mt-8 grid grid-cols-3 sm:grid-cols-5 gap-3 sm:gap-4 justify-items-center">
+      <div className="text-center">
+        <p className="tarot-kicker">Tarot de Medianoche</p>
+        <h2 className="mt-3 font-serif text-4xl leading-tight text-foreground sm:text-5xl">{title}</h2>
+        <p className="mt-3 text-sm text-muted-foreground sm:text-base">{selectionText}</p>
+      </div>
+      <div className="tarot-surface mt-8 grid grid-cols-4 justify-items-center gap-3 p-3 sm:grid-cols-6 sm:gap-4 sm:p-6">
         {deck.map(card => {
           const selected = selectedCards.find(item => item.id === card.id);
           const order = selectedIds.indexOf(card.id);
@@ -388,7 +389,7 @@ function CardSelectionSection({
                 onClick={() => onToggle(card)}
               />
               {selected && (
-                <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-medium flex items-center justify-center shadow">
+                <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground shadow-[0_4px_12px_var(--tarot-accent-glow)]">
                   {order + 1}
                 </div>
               )}
@@ -396,11 +397,9 @@ function CardSelectionSection({
           );
         })}
       </div>
-
-      <div className="sticky bottom-4 mt-10 z-10">
-        <Button onClick={onContinue} disabled={selectedCards.length !== requiredCount} size="lg" className="w-full h-12 text-base shadow-lg">
-          {continueLabel}
-          <ArrowRight className="ml-2 h-4 w-4" />
+      <div className="sticky bottom-4 z-10 mt-8 rounded-[var(--tarot-radius-sm)] bg-[var(--tarot-void)]/88 p-2 backdrop-blur-lg">
+        <Button onClick={onContinue} disabled={selectedCards.length !== requiredCount} size="lg" className="tarot-primary-action h-14 w-full text-base font-semibold">
+          {continueLabel} <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
     </section>
@@ -422,29 +421,31 @@ function NewQuestionSection({
 }) {
   const canContinue = question.trim().length >= 10;
   return (
-    <section className="container max-w-2xl pt-8 pb-16 fade-in">
-      <Button variant="ghost" onClick={onBack} className="mb-5 -ml-2 text-muted-foreground">
+    <section className="tarot-page max-w-2xl py-8 pb-16 fade-in">
+      <Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground">
         <ArrowLeft className="mr-2 h-4 w-4" /> Volver a tu lectura
       </Button>
-      <h1 className="font-serif text-3xl sm:text-4xl text-center text-foreground leading-tight">Haceme tu pregunta</h1>
-      <p className="mt-4 text-center text-muted-foreground">Escribí lo que querés saber y elegí una carta.</p>
-      <textarea
-        id="new-question"
-        value={question}
-        onChange={event => onQuestionChange(event.target.value)}
-        maxLength={500}
-        rows={4}
-        placeholder="¿Qué querés preguntarle al tarot?"
-        className="mt-8 w-full rounded-lg border border-border/70 bg-card/70 px-4 py-3 text-left text-foreground placeholder:text-muted-foreground/70 shadow-sm outline-none transition focus:ring-2 focus:ring-primary/40 resize-none"
-      />
-      <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-        <span>Una pregunta concreta ayuda a enfocar la lectura.</span>
-        <span>{question.length}/500</span>
+      <div className="tarot-surface px-5 py-9 sm:px-10">
+        <h1 className="text-center font-serif text-4xl leading-tight text-foreground sm:text-5xl">Haceme tu pregunta</h1>
+        <p className="mt-4 text-center text-muted-foreground">Escribí lo que querés saber y elegí una carta.</p>
+        <textarea
+          id="new-question"
+          value={question}
+          onChange={event => onQuestionChange(event.target.value)}
+          maxLength={500}
+          rows={4}
+          placeholder="¿Qué querés preguntarle al tarot?"
+          className="mt-8 w-full resize-none rounded-[var(--tarot-radius-sm)] border border-[var(--tarot-border)] bg-[oklch(0.17_0.032_307_/_78%)] px-4 py-4 text-left text-foreground shadow-inner outline-none transition placeholder:text-muted-foreground/70 focus:border-[var(--tarot-accent)] focus:ring-2 focus:ring-[var(--tarot-accent)]/25"
+        />
+        <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+          <span>Una pregunta concreta ayuda a enfocar la lectura.</span>
+          <span>{question.length}/500</span>
+        </div>
+        {restrictionMessage && <p role="alert" className="tarot-surface-elevated mt-5 px-4 py-3 text-sm leading-relaxed text-destructive">{restrictionMessage}</p>}
+        <Button onClick={onContinue} disabled={!canContinue} size="lg" className="tarot-primary-action mt-8 h-14 w-full text-base font-semibold">
+          Elegir tres cartas <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
       </div>
-      {restrictionMessage && <p role="alert" className="mt-4 text-sm leading-relaxed text-destructive">{restrictionMessage}</p>}
-      <Button onClick={onContinue} disabled={!canContinue} size="lg" className="mt-8 w-full h-12 text-base">
-        Elegir tres cartas <ArrowRight className="ml-2 h-4 w-4" />
-      </Button>
     </section>
   );
 }
@@ -471,14 +472,15 @@ function ReadingResultSection({
     : "Interpretando la combinación de tus cartas…";
 
   return (
-    <section className="container max-w-2xl pt-8 pb-16 fade-in">
-      <Button variant="ghost" onClick={onBack} className="mb-5 -ml-2 text-muted-foreground">
+    <section className="tarot-page max-w-3xl py-8 pb-16 fade-in">
+      <Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground">
         <ArrowLeft className="mr-2 h-4 w-4" /> Volver a las cartas
       </Button>
-      <p className="text-center font-serif italic text-muted-foreground">{eyebrow}</p>
-      <h1 className="mt-3 font-serif text-3xl sm:text-4xl text-center text-foreground leading-tight">{title}</h1>
-
-      <div className="mt-8 flex justify-center gap-3 sm:gap-4">
+      <div className="text-center">
+        <p className="tarot-kicker">{eyebrow}</p>
+        <h1 className="mt-3 text-center font-serif text-4xl leading-[1.02] text-foreground sm:text-5xl">{title}</h1>
+      </div>
+      <div className={`mt-9 flex justify-center ${cards.length === 1 ? "gap-0" : "gap-3 sm:gap-5"}`}>
         {cards.map(card => (
           <TarotCardView
             key={card.id}
@@ -486,21 +488,22 @@ function ReadingResultSection({
             emoji={card.emoji}
             revealed
             orientation={card.orientation}
-            size="sm"
+            size={cards.length === 1 ? "lg" : "md"}
           />
         ))}
       </div>
-
-      <Card className="mt-10 p-6 sm:p-8 bg-card border-border/60 shadow-sm min-h-44">
+      <Card className="tarot-surface mt-10 min-h-44 gap-0 border-0 p-6 shadow-none sm:p-9">
         {loading ? (
-          <div className="flex items-center justify-center gap-3 py-10 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" /> {loadingMessage}
+          <div className="flex flex-col items-center justify-center gap-4 py-10 text-center text-muted-foreground">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--tarot-border)] bg-[var(--tarot-surface-elevated)] shadow-[0_0_22px_var(--tarot-accent-glow)]">
+              <Loader2 className="h-4 w-4 animate-spin text-[var(--tarot-accent-hover)]" />
+            </span>
+            <span className="font-serif text-lg text-foreground">{loadingMessage}</span>
           </div>
         ) : (
-          <div className="font-serif text-base sm:text-lg leading-[1.85] text-foreground whitespace-pre-line">{reading}</div>
+          <div className="font-serif text-lg leading-[1.8] text-foreground whitespace-pre-line sm:text-xl">{reading}</div>
         )}
       </Card>
-
       {!loading && actions}
     </section>
   );

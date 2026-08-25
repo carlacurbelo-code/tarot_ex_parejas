@@ -147,3 +147,13 @@
 - [x] Ejecutar las ocho pruebas manuales de Dinero y trabajo y las comprobaciones de contexto solicitadas.
 - [x] Verificar visualmente el copy neutro y la ausencia de referencias heredadas a ex parejas.
 - [x] Ejecutar TypeScript, Vitest y build; documentar el Bloque 3 y detenerse.
+
+## Bloque 4A — rediseño visual Tarot de Medianoche
+- [x] Confirmar la continuación de la especificación: tirada de tres cartas, restricciones, validación móvil, pruebas y reporte.
+- [x] Definir tokens globales nocturnos, tipografía editorial y acento malva rosado para Tarot de Medianoche.
+- [x] Reemplazar la identidad visual principal por «Tarot de Medianoche» sin alterar la lógica de los Bloques 1, 2 y 3.
+- [x] Rediseñar el selector de contextos, pantalla de pregunta y mazo compartido con diseño mobile-first.
+- [x] Rediseñar carga, resultado y acciones de una y tres cartas, preservando copy y comportamiento aprobado.
+- [x] Preparar visualmente el componente de carta para imágenes futuras por identificador, sin generar ni modificar el mazo.
+- [x] Verificar las 15 comprobaciones móviles solicitadas, las invertidas y los flujos conservados.
+- [x] Ejecutar TypeScript, Vitest y build; documentar todos los puntos obligatorios y detenerse.

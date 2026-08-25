@@ -45,75 +45,86 @@
 }
 
 :root {
-  /* Paleta íntima: tonos tierra cálidos + azul suave */
-  --background: oklch(0.975 0.012 75);          /* crema cálido */
-  --foreground: oklch(0.285 0.025 50);          /* marrón profundo */
-  --card: oklch(0.985 0.008 75);                /* crema más claro */
-  --card-foreground: oklch(0.285 0.025 50);
-  --popover: oklch(0.985 0.008 75);
-  --popover-foreground: oklch(0.285 0.025 50);
-  --primary: oklch(0.45 0.055 240);             /* azul suave profundo */
-  --primary-foreground: oklch(0.975 0.012 75);
-  --secondary: oklch(0.92 0.025 65);            /* arena cálida */
-  --secondary-foreground: oklch(0.35 0.035 50);
-  --muted: oklch(0.93 0.018 70);                /* tierra suave */
-  --muted-foreground: oklch(0.5 0.025 55);
-  --accent: oklch(0.78 0.045 55);               /* terracota suave */
-  --accent-foreground: oklch(0.25 0.025 50);
+  --tarot-void: oklch(0.14 0.026 307);
+  --tarot-night: oklch(0.18 0.038 307);
+  --tarot-surface: oklch(0.23 0.043 309);
+  --tarot-surface-elevated: oklch(0.28 0.05 311);
+  --tarot-ink: oklch(0.95 0.015 82);
+  --tarot-ink-muted: oklch(0.78 0.026 307);
+  --tarot-accent: oklch(0.72 0.1 347);
+  --tarot-accent-hover: oklch(0.78 0.11 347);
+  --tarot-accent-glow: oklch(0.72 0.1 347 / 28%);
+  --tarot-border: oklch(0.68 0.052 317 / 34%);
+  --tarot-shadow: 0 22px 60px oklch(0.08 0.024 307 / 52%);
+  --tarot-shadow-lift: 0 18px 42px oklch(0.08 0.024 307 / 64%), 0 0 28px var(--tarot-accent-glow);
+  --tarot-radius-sm: 0.9rem;
+  --tarot-radius-md: 1.35rem;
+  --tarot-radius-lg: 1.8rem;
+  --tarot-space-page: clamp(1.35rem, 5vw, 4rem);
+
+  --background: var(--tarot-void);
+  --foreground: var(--tarot-ink);
+  --card: var(--tarot-surface);
+  --card-foreground: var(--tarot-ink);
+  --popover: var(--tarot-surface-elevated);
+  --popover-foreground: var(--tarot-ink);
+  --primary: var(--tarot-accent);
+  --primary-foreground: var(--tarot-void);
+  --secondary: var(--tarot-surface-elevated);
+  --secondary-foreground: var(--tarot-ink);
+  --muted: oklch(0.25 0.035 308);
+  --muted-foreground: var(--tarot-ink-muted);
+  --accent: var(--tarot-surface-elevated);
+  --accent-foreground: var(--tarot-ink);
   --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.88 0.018 65);               /* tierra clara */
-  --input: oklch(0.92 0.015 65);
-  --ring: oklch(0.55 0.05 240);
-  --chart-1: oklch(0.55 0.06 240);
-  --chart-2: oklch(0.65 0.07 55);
-  --chart-3: oklch(0.7 0.04 240);
-  --chart-4: oklch(0.6 0.05 30);
-  --chart-5: oklch(0.5 0.04 200);
-  --sidebar: oklch(0.96 0.012 75);
-  --sidebar-foreground: oklch(0.285 0.025 50);
-  --sidebar-primary: oklch(0.45 0.055 240);
-  --sidebar-primary-foreground: oklch(0.975 0.012 75);
-  --sidebar-accent: oklch(0.93 0.018 70);
-  --sidebar-accent-foreground: oklch(0.285 0.025 50);
-  --sidebar-border: oklch(0.88 0.018 65);
-  --sidebar-ring: oklch(0.55 0.05 240);
-  --radius: 0.5rem;
+  --destructive-foreground: var(--tarot-ink);
+  --border: var(--tarot-border);
+  --input: oklch(0.3 0.046 309);
+  --ring: var(--tarot-accent);
+  --chart-1: var(--tarot-accent);
+  --chart-2: oklch(0.65 0.065 306);
+  --chart-3: oklch(0.69 0.058 260);
+  --chart-4: oklch(0.66 0.08 14);
+  --chart-5: oklch(0.55 0.055 325);
+  --sidebar: var(--tarot-night);
+  --sidebar-foreground: var(--tarot-ink);
+  --sidebar-primary: var(--tarot-accent);
+  --sidebar-primary-foreground: var(--tarot-void);
+  --sidebar-accent: var(--tarot-surface-elevated);
+  --sidebar-accent-foreground: var(--tarot-ink);
+  --sidebar-border: var(--tarot-border);
+  --sidebar-ring: var(--tarot-accent);
+  --radius: var(--tarot-radius-sm);
 }
 
 .dark {
-  --background: oklch(0.18 0.015 50);
-  --foreground: oklch(0.92 0.012 70);
-  --card: oklch(0.22 0.018 50);
-  --card-foreground: oklch(0.92 0.012 70);
-  --popover: oklch(0.22 0.018 50);
-  --popover-foreground: oklch(0.92 0.012 70);
-  --primary: oklch(0.65 0.055 240);
-  --primary-foreground: oklch(0.18 0.015 50);
-  --secondary: oklch(0.28 0.022 55);
-  --secondary-foreground: oklch(0.85 0.012 70);
-  --muted: oklch(0.26 0.02 55);
-  --muted-foreground: oklch(0.7 0.018 60);
-  --accent: oklch(0.45 0.04 50);
-  --accent-foreground: oklch(0.92 0.012 70);
+  --background: var(--tarot-void);
+  --foreground: var(--tarot-ink);
+  --card: var(--tarot-surface);
+  --card-foreground: var(--tarot-ink);
+  --popover: var(--tarot-surface-elevated);
+  --popover-foreground: var(--tarot-ink);
+  --primary: var(--tarot-accent);
+  --primary-foreground: var(--tarot-void);
+  --secondary: var(--tarot-surface-elevated);
+  --secondary-foreground: var(--tarot-ink);
+  --muted: oklch(0.25 0.035 308);
+  --muted-foreground: var(--tarot-ink-muted);
+  --accent: var(--tarot-surface-elevated);
+  --accent-foreground: var(--tarot-ink);
   --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.55 0.05 240);
-  --chart-1: oklch(0.6 0.07 240);
-  --chart-2: oklch(0.65 0.07 55);
-  --chart-3: oklch(0.7 0.04 240);
-  --chart-4: oklch(0.55 0.05 30);
-  --chart-5: oklch(0.5 0.04 200);
-  --sidebar: oklch(0.22 0.018 50);
-  --sidebar-foreground: oklch(0.92 0.012 70);
-  --sidebar-primary: oklch(0.65 0.055 240);
-  --sidebar-primary-foreground: oklch(0.18 0.015 50);
-  --sidebar-accent: oklch(0.28 0.022 55);
-  --sidebar-accent-foreground: oklch(0.92 0.012 70);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.55 0.05 240);
+  --destructive-foreground: var(--tarot-ink);
+  --border: var(--tarot-border);
+  --input: oklch(0.3 0.046 309);
+  --ring: var(--tarot-accent);
+  --sidebar: var(--tarot-night);
+  --sidebar-foreground: var(--tarot-ink);
+  --sidebar-primary: var(--tarot-accent);
+  --sidebar-primary-foreground: var(--tarot-void);
+  --sidebar-accent: var(--tarot-surface-elevated);
+  --sidebar-accent-foreground: var(--tarot-ink);
+  --sidebar-border: var(--tarot-border);
+  --sidebar-ring: var(--tarot-accent);
 }
 
 @layer base {
@@ -124,6 +135,11 @@
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
     font-feature-settings: "ss01", "cv11";
+    background-image:
+      radial-gradient(circle at 8% -10%, oklch(0.34 0.09 316 / 46%), transparent 33rem),
+      radial-gradient(circle at 92% 12%, oklch(0.28 0.075 288 / 34%), transparent 28rem),
+      linear-gradient(145deg, var(--tarot-void), var(--tarot-night) 55%, var(--tarot-void));
+    background-attachment: fixed;
   }
   h1, h2, h3, h4, h5 {
     font-family: var(--font-serif);
@@ -172,9 +188,56 @@
     }
   }
 
-  /* Animaciones íntimas */
+  .tarot-shell {
+    position: relative;
+    isolation: isolate;
+    min-height: 100vh;
+  }
+
+  .tarot-page {
+    position: relative;
+    z-index: 1;
+    width: min(100%, 78rem);
+    margin-inline: auto;
+    padding-inline: var(--tarot-space-page);
+  }
+
+  .tarot-surface {
+    background: linear-gradient(145deg, oklch(0.275 0.05 310 / 88%), oklch(0.205 0.04 308 / 92%));
+    border: 1px solid var(--tarot-border);
+    border-radius: var(--tarot-radius-md);
+    box-shadow: var(--tarot-shadow);
+    backdrop-filter: blur(16px);
+  }
+
+  .tarot-surface-elevated {
+    background: linear-gradient(155deg, oklch(0.31 0.056 314 / 94%), oklch(0.225 0.04 309 / 96%));
+    border: 1px solid oklch(0.72 0.06 322 / 42%);
+    border-radius: var(--tarot-radius-md);
+    box-shadow: var(--tarot-shadow-lift);
+  }
+
+  .tarot-kicker {
+    color: oklch(0.79 0.065 343);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+
+  .tarot-primary-action {
+    background: linear-gradient(135deg, var(--tarot-accent-hover), var(--tarot-accent));
+    box-shadow: 0 12px 30px var(--tarot-accent-glow);
+  }
+
+  .tarot-secondary-action {
+    background: oklch(0.27 0.044 310 / 58%);
+    border-color: var(--tarot-border);
+  }
+
+  /* Microinteracciones nocturnas */
   .fade-in {
-    animation: fadeIn 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+    animation: fadeIn 0.32s cubic-bezier(0.23, 1, 0.32, 1);
   }
 
   @keyframes fadeIn {
@@ -195,5 +258,11 @@
 
   .card-hover:hover {
     transform: translateY(-2px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fade-in {
+      animation: none;
+    }
   }
 }
