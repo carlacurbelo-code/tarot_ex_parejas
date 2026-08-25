@@ -131,3 +131,6 @@
 - [x] Eliminar estado, recuadro y lógica de interfaz asociada, manteniendo las acciones de profundizar y nueva pregunta.
 - [x] Actualizar pruebas y verificar que ambas ramas generan una tirada profunda independiente con la pregunta correcta.
 - [x] Ejecutar TypeScript, build y Vitest; documentar la eliminación completa y detenerse.
+
+## Ajuste puntual de interfaz — eliminar texto superior
+- [x] Eliminar únicamente el texto «Lecturas íntimas» de la parte superior de la pantalla pública, sin sustituirlo ni alterar el resto del encabezado, branding o diseño.

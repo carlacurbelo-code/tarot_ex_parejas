@@ -201,8 +201,7 @@ function IntroSection({
   return (
     <section className="container max-w-2xl pt-12 pb-12 sm:pt-20 fade-in">
       <div className="text-center">
-        <p className="font-serif italic text-muted-foreground text-base sm:text-lg">Lecturas íntimas</p>
-        <h1 className="mt-6 font-serif text-4xl sm:text-5xl md:text-6xl leading-[1.1] tracking-tight text-foreground">
+        <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl leading-[1.1] tracking-tight text-foreground">
           ¿Tu ex todavía
           <br />
           <span className="italic text-primary">siente algo?</span>
