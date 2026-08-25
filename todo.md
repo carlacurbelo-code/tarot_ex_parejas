@@ -163,3 +163,10 @@
 - [x] Desaturar mediante tokens el accent aplicado a superficies grandes y CTA, sin cambiar el sistema visual general.
 - [x] Refinar jerarquía del resultado: carta, separación, contenedor de lectura, tamaño/interlineado y acciones.
 - [x] Revisar la coherencia de una y tres cartas en móvil; ejecutar TypeScript, Vitest y build; documentar y detenerse.
+
+## Auditoría de portabilidad — sin migración
+- [x] Verificar el control del repositorio GitHub, dominio y servicios externos declarados.
+- [x] Inventariar secretos, variables de entorno, migraciones, callbacks y dependencias de infraestructura.
+- [x] Identificar dependencias propietarias de Manus y definir reemplazos compatibles con Node/Express.
+- [x] Documentar despliegue portable, plan de salida, riesgos y pasos sin ejecutar una migración.
+- [x] Validar la documentación, guardar el resultado de la auditoría y entregarlo.
