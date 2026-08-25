@@ -175,3 +175,8 @@
 - [x] Revisar el componente de carta y los tokens que lo afectan sin alterar datos, selección ni orientación.
 - [x] Aplicar únicamente a las cartas una superficie pastel lavanda/menta, marco doble, iluminación suave y tipografía editorial inspiradas en la referencia.
 - [x] Verificar en móvil y escritorio las cartas derecha/invertida, selección y presentación de una/tres cartas; ejecutar validaciones y documentar.
+
+## Corrección puntual — giro de cartas invertidas en resultado
+- [x] Localizar por qué una carta invertida no rota en el estado «Ver mi lectura».
+- [x] Corregir únicamente la prop o representación visual del resultado, sin alterar selección, orientación ni flujo.
+- [x] Verificar selector y resultado de una/tres cartas con invertidas; ejecutar validaciones y documentar.

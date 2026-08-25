@@ -151,7 +151,7 @@ describe("tarot deck integrity", () => {
       "utf8",
     );
     expect(component).toContain('orientation === "reversed"');
-    expect(component).toContain('transform: "rotate(180deg)"');
+    expect(component).toContain('isReversed && "rotate-180"');
   });
 
   it("baraja mazos visibles independientes antes de cada cuadrícula de Home", () => {

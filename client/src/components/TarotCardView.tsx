@@ -47,16 +47,14 @@ export function TarotCardView({
         back
           ? "border-[oklch(0.83_0.065_317)] bg-[radial-gradient(circle_at_22%_18%,oklch(0.91_0.075_316/.95),transparent_30%),radial-gradient(circle_at_79%_74%,oklch(0.9_0.06_173/.8),transparent_36%),linear-gradient(145deg,oklch(0.86_0.045_313),oklch(0.78_0.06_288))] text-[oklch(0.42_0.075_300)] shadow-[0_12px_24px_oklch(0.1_0.03_300/.28),inset_0_1px_0_oklch(1_0_0/.72)]"
           : "border-[oklch(0.84_0.07_318)] bg-[radial-gradient(circle_at_16%_16%,oklch(0.95_0.052_315/.95),transparent_32%),radial-gradient(circle_at_83%_80%,oklch(0.9_0.08_172/.72),transparent_40%),linear-gradient(145deg,oklch(0.94_0.035_320),oklch(0.84_0.057_286))] shadow-[0_12px_24px_oklch(0.1_0.03_300/.24),inset_0_1px_0_oklch(1_0_0/.8)]",
+        isReversed && "rotate-180",
         selected && "-translate-y-1 ring-2 ring-[oklch(0.66_0.08_309)] ring-offset-2 ring-offset-[var(--tarot-void)] shadow-[0_16px_30px_oklch(0.1_0.03_300/.34)]",
         isClickable && !selected && "cursor-pointer hover:-translate-y-1 hover:border-[oklch(0.68_0.085_308)] hover:shadow-[0_16px_30px_oklch(0.1_0.03_300/.32)]",
         !isClickable && "cursor-default",
         className,
       )}
     >
-      <div
-        className="w-full h-full"
-        style={isReversed ? { transform: "rotate(180deg)" } : undefined}
-      >
+      <div className="h-full w-full">
         {back ? (
           <div className="flex items-center justify-center w-full h-full">
             <div className="absolute inset-1.5 rounded-[0.78rem] border border-[oklch(0.91_0.065_87/.86)]" />
