@@ -201,21 +201,24 @@
 - [x] Trazar por separado los flujos de «Profundizar esta lectura» y «Hacer otra pregunta» frente a un cobro confirmado.
 - [x] Determinar si hoy existe el recorrido automático pago → tres cartas → Gemini → resultado e identificar su punto exacto de corte si no existe.
 - [x] Definir la modificación mínima, posibles servicios externos, complejidad y riesgos sin tomar decisiones ni implementar.
-- [ ] Entregar el reporte de auditoría y detenerse.
+- [x] Entregar el reporte de auditoría y detenerse.
 
 ## Monetización de lectura IA profunda — Dodo Payments
-- [ ] Confirmar la integración oficial de checkout/webhook de Dodo y documentar sus variables sin exponer secretos.
-- [ ] Crear un modelo separado de compra y derecho de una tirada IA, sin alterar pedidos, PayPal ni audio heredados.
-- [ ] Implementar checkout de Dodo, webhook con verificación de firma e idempotencia por evento/pago.
-- [ ] Exigir autorización de compra de un único uso antes de ejecutar la lectura profunda de tres cartas y conservarla ante un fallo temporal de Gemini.
-- [ ] Integrar el paywall mobile-first y conservar pregunta, contexto y tipo de acción a través de checkout y retorno.
-- [ ] Mantener separados el flujo PayPal/audio y el nuevo producto Dodo IA; añadir pruebas de regresión y de seguridad de compra.
-- [ ] Ejecutar QA técnico/sandbox disponible, documentar la configuración pendiente de Dodo y entregar el reporte final.
+- [x] Confirmar la integración oficial de checkout/webhook de Dodo y documentar sus variables sin exponer secretos.
+- [x] Crear un modelo separado de compra y derecho de una tirada IA, sin alterar pedidos, PayPal ni audio heredados.
+- [x] Implementar checkout de Dodo, webhook con verificación de firma e idempotencia por evento/pago.
+- [x] Exigir autorización de compra de un único uso antes de ejecutar la lectura profunda de tres cartas y conservarla ante un fallo temporal de Gemini.
+- [x] Integrar el paywall mobile-first y conservar pregunta, contexto y tipo de acción a través de checkout y retorno.
+- [x] Mantener separados el flujo PayPal/audio y el nuevo producto Dodo IA; añadir pruebas de regresión y de seguridad de compra.
+- [x] Ejecutar QA técnico/sandbox disponible, documentar la configuración pendiente de Dodo y entregar el reporte final.
 
 - [ ] Continuar la generación del diseño visual de las cartas pendientes en lotes consistentes mientras se cargan las credenciales Dodo.
 - [ ] Revisar cada lote generado contra el sistema visual aprobado antes de incorporarlo al catálogo.
 - [ ] Mantener separadas la producción de imágenes y la activación del checkout hasta completar las credenciales y validaciones.
 
-- [ ] Investigar por qué el pago Dodo aprobado no actualiza la compra ni registra `payment.succeeded`.
-- [ ] Comparar la entrega real del webhook con la ruta, firma, entorno y asociación por metadata.
-- [ ] Corregir únicamente el punto de recepción/asociación Dodo y validar desbloqueo de una lectura.
+- [x] Investigar por qué el pago Dodo aprobado no actualiza la compra ni registra `payment.succeeded`.
+- [x] Comparar la entrega real del webhook con la ruta, firma, entorno y asociación por metadata.
+- [x] Corregir únicamente el punto de recepción/asociación Dodo y validar desbloqueo de una lectura.
+
+- [x] Corregir la lectura del parámetro `dodo_purchase` al volver desde checkout para activar la compra pagada en producción.
+- [x] Verificar que el retorno muestra la selección de tres cartas y no vuelve al inicio.

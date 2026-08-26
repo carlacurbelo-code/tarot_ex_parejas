@@ -47,7 +47,7 @@ export default function Home() {
   const submitDeepReadingMutation = trpc.dodo.submitPaidDeepReading.useMutation();
   const productQuery = trpc.dodo.getDeepReadingProduct.useQuery();
   const createCheckout = trpc.dodo.createDeepReadingCheckout.useMutation();
-  const purchaseFromReturn = new URLSearchParams(location.split("?")[1] ?? "").get("dodo_purchase") ?? "";
+  const purchaseFromReturn = new URLSearchParams(window.location.search).get("dodo_purchase") ?? "";
   const purchaseQuery = trpc.dodo.getDeepReadingPurchase.useQuery(
     { purchaseToken: purchaseFromReturn || "pending-purchase-token" },
     { enabled: Boolean(purchaseFromReturn), refetchInterval: query => query.state.data?.status === "checkout_created" ? 2000 : false },
