@@ -8,6 +8,12 @@ import {
   Order,
   dodoDeepReadingPurchases,
   dodoWebhookEvents,
+  tarotCreditPacks,
+  tarotProfiles,
+  tarotReadings,
+  type InsertTarotCreditPack,
+  type InsertTarotProfile,
+  type InsertTarotReading,
   orders,
   settings,
   users,
@@ -301,3 +307,131 @@ export const SETTING_KEYS = {
 } as const;
 
 export const DEFAULT_PREMIUM_PRICE = "15";
+
+/* ============== NUEVO FUNNEL: EMAIL, LECTURAS Y CRÉDITOS ============== */
+
+function normalizeTarotEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+export async function getTarotProfileByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(tarotProfiles)
+    .where(eq(tarotProfiles.email, normalizeTarotEmail(email))).limit(1);
+  return rows[0];
+}
+
+export async function createOrUpdateTarotProfile(email: string, marketingConsent: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  const normalizedEmail = normalizeTarotEmail(email);
+  const existing = await getTarotProfileByEmail(normalizedEmail);
+  if (existing) {
+    if (marketingConsent && !existing.marketingConsent) {
+      await db.update(tarotProfiles).set({ marketingConsent: 1 }).where(eq(tarotProfiles.id, existing.id));
+      return { ...existing, marketingConsent: 1 };
+    }
+    return existing;
+  }
+  const result: any = await db.insert(tarotProfiles).values({ email: normalizedEmail, marketingConsent: marketingConsent ? 1 : 0 });
+  const id = result?.[0]?.insertId ?? result?.insertId;
+  const created = await db.select().from(tarotProfiles).where(eq(tarotProfiles.id, id)).limit(1);
+  if (!created[0]) throw new Error("No se pudo crear la identidad por email.");
+  return created[0];
+}
+
+export async function createTarotReading(data: InsertTarotReading): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  await db.insert(tarotReadings).values(data);
+}
+
+export async function getTarotReading(readingToken: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(tarotReadings).where(eq(tarotReadings.readingToken, readingToken)).limit(1);
+  return rows[0];
+}
+
+export async function unlockTarotFreeReading(params: { readingToken: string; email: string; marketingConsent: boolean }) {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  const profile = await createOrUpdateTarotProfile(params.email, params.marketingConsent);
+  const result = await db.update(tarotProfiles)
+    .set({ freeReadingClaimedAt: new Date() })
+    .where(and(eq(tarotProfiles.id, profile.id), sql`${tarotProfiles.freeReadingClaimedAt} IS NULL`));
+  const claimed = affectedRows(result) > 0;
+  if (!claimed) return { claimed: false, profile };
+  await db.update(tarotReadings)
+    .set({ profileId: profile.id, status: "ready" })
+    .where(eq(tarotReadings.readingToken, params.readingToken));
+  return { claimed: true, profile: { ...profile, freeReadingClaimedAt: new Date() } };
+}
+
+export async function saveTarotReadingInterpretation(readingToken: string, interpretation: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  await db.update(tarotReadings).set({ interpretation, status: "ready" }).where(eq(tarotReadings.readingToken, readingToken));
+}
+
+export async function createTarotCreditPack(data: InsertTarotCreditPack): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  await db.insert(tarotCreditPacks).values(data);
+}
+
+export async function setTarotCreditPackCheckout(packToken: string, checkoutSessionId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  await db.update(tarotCreditPacks).set({ checkoutSessionId }).where(eq(tarotCreditPacks.packToken, packToken));
+}
+
+export async function getTarotCreditPack(packToken: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(tarotCreditPacks).where(eq(tarotCreditPacks.packToken, packToken)).limit(1);
+  return rows[0];
+}
+
+export async function getTarotCreditPackStatus(packToken: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select({ pack: tarotCreditPacks, profile: tarotProfiles })
+    .from(tarotCreditPacks)
+    .leftJoin(tarotProfiles, eq(tarotCreditPacks.profileId, tarotProfiles.id))
+    .where(eq(tarotCreditPacks.packToken, packToken)).limit(1);
+  return rows[0];
+}
+
+export async function grantTarotCreditPack(params: { packToken: string; paymentId: string; productId: string; brandId: string }): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  const pack = await getTarotCreditPack(params.packToken);
+  if (!pack || pack.status !== "checkout_created" || pack.dodoProductId !== params.productId || pack.dodoBrandId !== params.brandId) return false;
+  const result = await db.update(tarotCreditPacks)
+    .set({ status: "paid", dodoPaymentId: params.paymentId, paidAt: new Date() })
+    .where(and(eq(tarotCreditPacks.packToken, params.packToken), eq(tarotCreditPacks.status, "checkout_created")));
+  if (affectedRows(result) === 0) return false;
+  await db.update(tarotProfiles)
+    .set({ credits: sql`${tarotProfiles.credits} + ${pack.creditsGranted}` })
+    .where(eq(tarotProfiles.id, pack.profileId));
+  return true;
+}
+
+export async function claimTarotCredit(email: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  const result = await db.update(tarotProfiles)
+    .set({ credits: sql`${tarotProfiles.credits} - 1` })
+    .where(and(eq(tarotProfiles.email, normalizeTarotEmail(email)), sql`${tarotProfiles.credits} > 0`));
+  return affectedRows(result) > 0;
+}
+
+export async function releaseTarotCredit(email: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(tarotProfiles)
+    .set({ credits: sql`${tarotProfiles.credits} + 1` })
+    .where(eq(tarotProfiles.email, normalizeTarotEmail(email)));
+}

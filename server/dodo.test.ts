@@ -46,9 +46,10 @@ describe("contrato Dodo y regresiones del flujo heredado", () => {
   const indexSource = readProjectFile("server/_core/index.ts");
   const homeSource = readProjectFile("client/src/pages/Home.tsx");
 
-  it("crea checkout con producto de Dodo sin un precio hardcodeado", () => {
-    expect(routerSource).toContain("createDodoDeepReadingCheckout");
-    expect(routerSource).toContain("getDodoDeepReadingProduct");
+  it("crea checkout de créditos con producto de Dodo sin un precio hardcodeado", () => {
+    expect(routerSource).toContain("createDodoCreditPackCheckout");
+    expect(routerSource).toContain("getDodoCreditPackProduct");
+    expect(routerSource).toContain("creditsGranted: 3");
     expect(routerSource).not.toContain("price: 20");
   });
 
@@ -66,10 +67,11 @@ describe("contrato Dodo y regresiones del flujo heredado", () => {
     expect(webhookSource).toContain("containsExpectedProduct");
   });
 
-  it("protege el uso único frente a una generación fallida", () => {
+  it("mantiene el flujo heredado de una compra única aislado", () => {
     expect(routerSource).toContain("claimDodoPurchaseForGeneration");
     expect(routerSource).toContain("releaseDodoPurchaseAfterGenerationFailure");
     expect(routerSource).toContain("consumeDodoPurchase");
+    expect(routerSource).toContain("claimTarotCredit");
   });
 
   it("mantiene el producto PayPal/audio separado del nuevo router Dodo", () => {
@@ -78,8 +80,11 @@ describe("contrato Dodo y regresiones del flujo heredado", () => {
     expect(routerSource).toContain("dodo: router");
   });
 
-  it("exige un purchaseToken antes de la lectura profunda en la interfaz", () => {
-    expect(homeSource).toContain("purchaseToken: deepPurchaseToken");
-    expect(homeSource).toContain("Continuar al pago");
+  it("exige email para desbloquear y ofrece pack de tres créditos", () => {
+    expect(homeSource).toContain("email");
+    expect(homeSource).toContain("Desbloquear mi lectura");
+    expect(homeSource).toContain("Comprar pack de 3 lecturas");
+    expect(homeSource).toContain("marketingConsent");
+    expect(homeSource).not.toContain("deepPurchaseToken");
   });
 });

@@ -250,3 +250,13 @@
 - [x] Agregar pruebas de Tarot válido, Konstel rechazado, marca ausente e idempotencia.
 - [x] Auditar productos Tarot asignados a Tarot de Medianoche en Dodo Test Mode y documentar resultado.
 - [x] Ejecutar TypeScript y pruebas, sin tocar Live ni crear cobros/checkouts.
+
+## Implementación completa del nuevo funnel — continuación
+- [x] Reemplazar el flujo público de una carta por tres cartas visibles antes del desbloqueo.
+- [x] Crear identidad por email, bloqueo de nueva tirada gratuita y consentimiento de marketing separado.
+- [x] Crear créditos persistentes y consumo atómico para lecturas pagas.
+- [x] Conectar el pack Dodo de USD 6,99, webhook de créditos y recompra.
+- [x] Fijar Gemini Flash-Lite en lecturas gratuitas y pagas.
+- [x] Mantener sin cambios el flujo heredado PayPal/audio.
+- [x] Actualizar privacidad y términos sobre email y marketing opcional.
+- [ ] Ejecutar validación end-to-end del funnel completo con una transacción real de Dodo Test Mode.

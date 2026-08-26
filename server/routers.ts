@@ -22,9 +22,19 @@ import {
   claimDodoPurchaseForGeneration,
   consumeDodoPurchase,
   createDodoDeepReadingPurchase,
+  createOrUpdateTarotProfile,
   createOrder,
   getDodoDeepReadingPurchase,
   getOrderByToken,
+  getTarotProfileByEmail,
+  getTarotCreditPackStatus,
+  getTarotReading,
+  claimTarotCredit,
+  createTarotCreditPack,
+  createTarotReading,
+  saveTarotReadingInterpretation,
+  releaseTarotCredit,
+  setTarotCreditPackCheckout,
   getSettingValue,
   listAllOrders,
   markOrderCompleted,
@@ -35,10 +45,13 @@ import {
   setSettingValue,
   updateOrderPremiumQuestion,
   updateOrderReading,
+  unlockTarotFreeReading,
 } from "./db";
 import {
   DodoConfigurationError,
+  createDodoCreditPackCheckout,
   createDodoDeepReadingCheckout,
+  getDodoCreditPackProduct,
   getDodoDeepReadingProduct,
 } from "./dodo";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -390,6 +403,106 @@ Pedido #${order.id}. Ingresá al panel admin para subir el audio.`,
   }),
 
   dodo: router({
+    /** Producto del pack nuevo de tres lecturas por email. */
+    getCreditPackProduct: publicProcedure.query(async () => {
+      try {
+        const product = await getDodoCreditPackProduct();
+        return { configured: true as const, ...product };
+      } catch (error) {
+        if (error instanceof DodoConfigurationError) return { configured: false as const, productId: null, amountMinor: null, currency: null };
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No pude cargar el pack de lecturas." });
+      }
+    }),
+
+    /** Crea la tirada gratuita de tres cartas; la interpretación se desbloquea con email. */
+    createFreeReading: publicProcedure
+      .input(z.object({
+        situation: z.string().min(10).max(800),
+        context: z.enum(["love", "money_work"]),
+        cards: z.array(z.object({ id: z.string(), orientation: z.enum(["upright", "reversed"]) })).length(3),
+      }))
+      .mutation(async ({ input }) => {
+        rejectRestrictedQuestion(input.situation);
+        const cards = normalizeSelection(input.cards);
+        if (!hasThreeDistinctCards(cards)) throw new TRPCError({ code: "BAD_REQUEST", message: "Cartas inválidas o repetidas." });
+        const readingToken = nanoid(32);
+        await createTarotReading({
+          readingToken,
+          question: input.situation.trim(),
+          context: input.context,
+          selectedCards: JSON.stringify(cards.map(card => ({ id: card.id, orientation: card.orientation }))),
+          kind: "free",
+          status: "pending_email",
+        });
+        return { readingToken, cards: cards.map(card => ({ id: card.id, name: card.name, emoji: card.emoji, imageKey: card.imageKey, orientation: card.orientation })) };
+      }),
+
+    /** Desbloquea una tirada gratuita una sola vez por email y genera su interpretación completa. */
+    unlockFreeReading: publicProcedure
+      .input(z.object({ readingToken: z.string().min(20).max(64), email: z.string().email(), marketingConsent: z.boolean().default(false) }))
+      .mutation(async ({ input }) => {
+        const reading = await getTarotReading(input.readingToken);
+        if (!reading) throw new TRPCError({ code: "NOT_FOUND", message: "No encontramos esta tirada." });
+        if (reading.kind !== "free") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta tirada no es gratuita." });
+        const unlocked = await unlockTarotFreeReading({ readingToken: input.readingToken, email: input.email, marketingConsent: input.marketingConsent });
+        if (!unlocked.claimed) throw new TRPCError({ code: "CONFLICT", message: "Este email ya utilizó la lectura gratuita." });
+        const cards = parseStoredSelection(JSON.parse(reading.selectedCards));
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: reading.context === "money_work" ? MONEY_WORK_SYSTEM_PROMPT : SYSTEM_PROMPT },
+            { role: "user", content: buildReadingUserMessage(reading.question, cards, reading.context as ReadingContext) },
+          ],
+        });
+        const interpretation = response.choices?.[0]?.message?.content;
+        if (typeof interpretation !== "string" || !interpretation.trim()) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No pude generar la interpretación." });
+        await saveTarotReadingInterpretation(input.readingToken, interpretation.trim());
+        return { readingToken: input.readingToken, reading: interpretation.trim(), credits: unlocked.profile.credits, cards: cards.map(card => ({ id: card.id, name: card.name, emoji: card.emoji, imageKey: card.imageKey, orientation: card.orientation })) };
+      }),
+
+    getCreditBalance: publicProcedure
+      .input(z.object({ email: z.string().email() }))
+      .query(async ({ input }) => ({ credits: (await getTarotProfileByEmail(input.email))?.credits ?? 0 })),
+
+    getCreditPackStatus: publicProcedure
+      .input(z.object({ packToken: z.string().min(20).max(64) }))
+      .query(async ({ input }) => {
+        const result = await getTarotCreditPackStatus(input.packToken);
+        if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "No encontramos este pack." });
+        return { status: result.pack.status, email: result.profile?.email ?? result.pack.email, credits: result.profile?.credits ?? 0 };
+      }),
+
+    createCreditPackCheckout: publicProcedure
+      .input(z.object({ email: z.string().email(), origin: z.string().url() }))
+      .mutation(async ({ input }) => {
+        const profile = await createOrUpdateTarotProfile(input.email, false);
+        const product = await getDodoCreditPackProduct();
+        const packToken = nanoid(32);
+        await createTarotCreditPack({ packToken, profileId: profile.id, email: input.email.trim().toLowerCase(), dodoProductId: product.productId, dodoBrandId: product.brandId, creditsGranted: 3, status: "checkout_created" });
+        const origin = new URL(input.origin).origin;
+        const checkout = await createDodoCreditPackCheckout({ packToken, returnUrl: `${origin}/?tarot_pack=${encodeURIComponent(packToken)}`, cancelUrl: `${origin}/?tarot_pack=${encodeURIComponent(packToken)}&checkout=cancelled` });
+        await setTarotCreditPackCheckout(packToken, checkout.checkoutSessionId);
+        return { packToken, checkoutUrl: checkout.checkoutUrl };
+      }),
+
+    submitCreditReading: publicProcedure
+      .input(z.object({ email: z.string().email(), question: z.string().min(10).max(800), context: z.enum(["love", "money_work"]), cards: z.array(z.object({ id: z.string(), orientation: z.enum(["upright", "reversed"]) })).length(3) }))
+      .mutation(async ({ input }) => {
+        rejectRestrictedQuestion(input.question);
+        const claimed = await claimTarotCredit(input.email);
+        if (!claimed) throw new TRPCError({ code: "FORBIDDEN", message: "No tenés créditos disponibles. Comprá otro pack para continuar." });
+        const cards = normalizeSelection(input.cards);
+        if (!hasThreeDistinctCards(cards)) { await releaseTarotCredit(input.email); throw new TRPCError({ code: "BAD_REQUEST", message: "Cartas inválidas o repetidas." }); }
+        try {
+          const response = await invokeLLM({ messages: [{ role: "system", content: input.context === "money_work" ? MONEY_WORK_SYSTEM_PROMPT : SYSTEM_PROMPT }, { role: "user", content: buildReadingUserMessage(input.question.trim(), cards, input.context) }] });
+          const interpretation = response.choices?.[0]?.message?.content;
+          if (typeof interpretation !== "string" || !interpretation.trim()) throw new Error("Gemini no devolvió una lectura.");
+          return { reading: interpretation.trim(), credits: ((await getTarotProfileByEmail(input.email))?.credits ?? 0), cards: cards.map(card => ({ id: card.id, name: card.name, emoji: card.emoji, imageKey: card.imageKey, orientation: card.orientation })) };
+        } catch (error) {
+          await releaseTarotCredit(input.email);
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No pude generar la lectura. Tu crédito fue restaurado." });
+        }
+      }),
+
     /** Precio y disponibilidad del producto puntual configurado exclusivamente en Dodo. */
     getDeepReadingProduct: publicProcedure.query(async () => {
       try {

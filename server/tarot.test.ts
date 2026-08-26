@@ -168,8 +168,10 @@ describe("tarot deck integrity", () => {
   it("baraja mazos visibles independientes antes de cada cuadrícula de Home", () => {
     const home = fs.readFileSync(path.resolve(import.meta.dirname, "../client/src/pages/Home.tsx"), "utf8");
     expect(home).toContain("createIndependentReadingDeck()");
-    expect(home).toContain("deck={singleDeck}");
-    expect(home).toContain("deck={deepDeck}");
+    expect(home).toContain("freeDeck");
+    expect(home).toContain("paidDeck");
+    expect(home).toContain("setFreeDeck(createIndependentDeck())");
+    expect(home).toContain("setPaidDeck(createIndependentDeck())");
   });
 
   it("aplica 30% invertida por carta de forma independiente", () => {
@@ -186,12 +188,13 @@ describe("tarot deck integrity", () => {
 });
 
 describe("Bloque 2 — independencia entre tiradas", () => {
-  it("la tirada gratuita selecciona exactamente una carta del mazo completo con orientación propia", () => {
+  it("la tirada gratuita y las pagas usan tres cartas distintas del mazo completo", () => {
     const deck = createIndependentReadingDeck(() => 0.7);
-    const selection = selectSingleCard(deck[0]!, () => 0.29);
+    const selected = [deck[0]!, deck[1]!, deck[2]!];
     expect(deck).toHaveLength(78);
-    expect(TAROT_DECK.some(card => card.id === selection.id)).toBe(true);
-    expect(selection.orientation).toBe("reversed");
+    expect(selected).toHaveLength(3);
+    expect(new Set(selected.map(card => card.id)).size).toBe(3);
+    expect(TAROT_DECK.some(card => card.id === selected[0]!.id)).toBe(true);
   });
 
   it("resuelve la pregunta profunda correcta para profundizar o hacer otra pregunta", () => {
@@ -226,12 +229,12 @@ describe("Bloque 2 — independencia entre tiradas", () => {
 
   it("el envío profundo pago preserva deepQuestion al crear checkout y usa tres cartas nuevas sin usar la lectura gratuita", () => {
     const home = fs.readFileSync(path.resolve(import.meta.dirname, "../client/src/pages/Home.tsx"), "utf8");
-    const handler = home.slice(home.indexOf("const handleDeepReading"), home.indexOf("return ("));
-    const checkout = home.slice(home.indexOf("const beginDodoCheckout"), home.indexOf("const toggleDeepCard"));
-    expect(checkout).toContain("question: deepQuestion");
-    expect(handler).toContain("purchaseToken: deepPurchaseToken");
-    expect(handler).toContain("cards: deepCards.map");
-    expect(handler).not.toContain("freeReading");
+    expect(home).toContain("createFreeReading");
+    expect(home).toContain("submitCreditReading");
+    expect(home).toContain("question: paidQuestion");
+    expect(home).toContain("cards: paidCards.map");
+    expect(home).toContain("email");
+    expect(home).not.toContain("deepPurchaseToken");
   });
 });
 
@@ -257,8 +260,8 @@ describe("Bloque 3 — contextos y restricciones", () => {
     })).toBe("¿Cómo se ve este proyecto?");
 
     const home = fs.readFileSync(path.resolve(import.meta.dirname, "../client/src/pages/Home.tsx"), "utf8");
-    expect(home).toContain('setContextSelectionMode("new-question")');
-    expect(home).toContain("setReadingContext(context)");
+    expect(home).toContain("setContext(next)");
+    expect(home).toContain("setStep(\"intro\")");
   });
 
   it("envía el contexto, las cartas y las orientaciones correctas para Dinero y trabajo", () => {
@@ -297,7 +300,7 @@ describe("Bloque 3 — contextos y restricciones", () => {
   it("muestra el copy neutro y elimina referencias heredadas en la pantalla de pregunta", () => {
     const home = fs.readFileSync(path.resolve(import.meta.dirname, "../client/src/pages/Home.tsx"), "utf8");
     expect(home).toContain("Haceme tu pregunta");
-    expect(home).toContain("Escribí lo que querés saber y elegí una carta.");
+    expect(home).toContain("Escribí lo que querés saber y dejá que la tirada abra una perspectiva.");
     expect(home).toContain("¿Qué querés preguntarle al tarot?");
     expect(home).not.toContain("¿Tu ex todavía siente algo?");
     expect(home).not.toContain("ese vínculo");
@@ -395,11 +398,11 @@ describe("tarot single-card reading contract", () => {
     expect(SINGLE_CARD_SYSTEM_PROMPT).toContain("respuesta real, completa y autosuficiente");
   });
 
-  it("muestra mensajes de carga distintos para una carta y para tres cartas", () => {
+  it("muestra el mensaje de carga aprobado para la combinación de tres cartas", () => {
     const home = fs.readFileSync(path.resolve(import.meta.dirname, "../client/src/pages/Home.tsx"), "utf8");
-    expect(home).toContain("Interpretando tu carta…");
     expect(home).toContain("Interpretando la combinación de tus cartas…");
-    expect(home).toContain("cards.length === 1");
+    expect(home).not.toContain("Interpretando tu carta…");
+    expect(home).not.toContain("cards.length === 1");
   });
 
   it("rechaza una respuesta de una carta incompleta o inválida", () => {

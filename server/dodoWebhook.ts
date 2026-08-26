@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { getDodoClient } from "./dodo";
 import {
   getDodoDeepReadingPurchase,
+  grantTarotCreditPack,
   markDodoPurchasePaid,
   recordDodoWebhookEvent,
 } from "./db";
@@ -66,9 +67,33 @@ export async function handleDodoWebhook(req: Request, res: Response) {
       res.status(200).end();
       return;
     }
+    const packToken = typeof payment.metadata?.tarot_pack_token === "string"
+      ? payment.metadata.tarot_pack_token
+      : null;
     const purchaseToken = typeof payment.metadata?.tarot_purchase_token === "string"
       ? payment.metadata.tarot_purchase_token
       : null;
+
+    if (packToken) {
+      const isFirstPackDelivery = await recordDodoWebhookEvent({
+        webhookEventId: webhookId,
+        eventType: event.type,
+        dodoPaymentId: payment.payment_id,
+        purchaseToken: packToken,
+      });
+      if (!isFirstPackDelivery) {
+        res.status(200).end();
+        return;
+      }
+      await grantTarotCreditPack({
+        packToken,
+        paymentId: payment.payment_id,
+        productId: payment.product_cart?.[0]?.product_id ?? "",
+        brandId: paymentBrandId,
+      });
+      res.status(200).end();
+      return;
+    }
 
     const isFirstDelivery = await recordDodoWebhookEvent({
       webhookEventId: webhookId,

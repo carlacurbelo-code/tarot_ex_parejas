@@ -41,6 +41,41 @@ export async function getDodoDeepReadingProduct() {
   };
 }
 
+export async function getDodoCreditPackProduct() {
+  if (!ENV.dodoCreditPackProductId) {
+    throw new DodoConfigurationError("Falta configurar el pack de créditos en Dodo.");
+  }
+  const product = await getDodoClient().products.retrieve(ENV.dodoCreditPackProductId);
+  if (product.is_recurring || product.price.type !== "one_time_price" || product.price.price !== 699 || product.price.currency !== "USD") {
+    throw new DodoConfigurationError("El pack configurado debe ser un pago único de USD 6,99.");
+  }
+  return {
+    productId: product.product_id,
+    brandId: product.brand_id,
+    amountMinor: product.price.price,
+    currency: product.price.currency,
+  };
+}
+
+export async function createDodoCreditPackCheckout(params: {
+  packToken: string;
+  returnUrl: string;
+  cancelUrl: string;
+}) {
+  const product = await getDodoCreditPackProduct();
+  const response = await getDodoClient().checkoutSessions.create({
+    product_cart: [{ product_id: product.productId, quantity: 1 }],
+    return_url: params.returnUrl,
+    cancel_url: params.cancelUrl,
+    metadata: {
+      tarot_pack_token: params.packToken,
+      tarot_product: "credit_pack",
+    },
+  });
+  if (!response.checkout_url) throw new Error("Dodo no devolvió una URL de checkout.");
+  return { checkoutSessionId: response.session_id, checkoutUrl: response.checkout_url, product };
+}
+
 export async function createDodoDeepReadingCheckout(params: {
   purchaseToken: string;
   returnUrl: string;

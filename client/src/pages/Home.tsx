@@ -1,646 +1,179 @@
-import { TarotCardView } from "@/components/TarotCardView";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SiteFooter } from "@/components/SiteFooter";
 import { trpc } from "@/lib/trpc";
-import {
-  createIndependentReadingDeck,
-  resolveDeepQuestion,
-  selectSingleCard,
-  toggleDeepCards,
-} from "@shared/readingFlow";
-import {
-  isRestrictedQuestion,
-  READING_CONTEXT_LABELS,
-  RESTRICTED_QUESTION_MESSAGE,
-  type ReadingContext,
-} from "@shared/readingContext";
-import type { CardOrientation, TarotCard, TarotSelection } from "@shared/tarot";
-import { ArrowLeft, ArrowRight, BriefcaseBusiness, Heart, Loader2, Sparkles } from "lucide-react";
+import { createIndependentReadingDeck, toggleDeepCards } from "@shared/readingFlow";
+import { isRestrictedQuestion, READING_CONTEXT_LABELS, RESTRICTED_QUESTION_MESSAGE, type ReadingContext } from "@shared/readingContext";
+import { normalizeSelection, type TarotCard, type TarotSelection } from "@shared/tarot";
+import { ArrowLeft, ArrowRight, BriefcaseBusiness, Check, Heart, Loader2, Mail, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { TarotCardView } from "@/components/TarotCardView";
 
-type Step = "context" | "intro" | "single-cards" | "free-result" | "new-question" | "paywall" | "checkout-status" | "deep-cards" | "deep-result";
-type ContextSelectionMode = "initial" | "new-question";
-type DeepPurchaseAction = "deepen" | "new_question";
+type Step = "context" | "intro" | "free-cards" | "email" | "free-result" | "paid-question" | "paid-cards" | "paid-result" | "paywall" | "checkout";
 
 export default function Home() {
   const [location] = useLocation();
   const [step, setStep] = useState<Step>("context");
-  const [readingContext, setReadingContext] = useState<ReadingContext | null>(null);
-  const [contextSelectionMode, setContextSelectionMode] = useState<ContextSelectionMode>("initial");
-  const [originalQuestion, setOriginalQuestion] = useState("");
-  const [newQuestion, setNewQuestion] = useState("");
-  const [deepQuestion, setDeepQuestion] = useState("");
-  const [singleDeck, setSingleDeck] = useState<TarotCard[]>(() => createIndependentReadingDeck());
-  const [deepDeck, setDeepDeck] = useState<TarotCard[]>(() => createIndependentReadingDeck());
-  const [singleCard, setSingleCard] = useState<TarotSelection | null>(null);
-  const [deepCards, setDeepCards] = useState<TarotSelection[]>([]);
+  const [context, setContext] = useState<ReadingContext | null>(null);
+  const [question, setQuestion] = useState("");
+  const [paidQuestion, setPaidQuestion] = useState("");
+  const [email, setEmail] = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [freeDeck, setFreeDeck] = useState<TarotCard[]>([]);
+  const [paidDeck, setPaidDeck] = useState<TarotCard[]>([]);
+  const [freeCards, setFreeCards] = useState<TarotSelection[]>([]);
+  const [paidCards, setPaidCards] = useState<TarotSelection[]>([]);
   const [freeReading, setFreeReading] = useState("");
-  const [deepReading, setDeepReading] = useState("");
-  const [deepPurchaseToken, setDeepPurchaseToken] = useState("");
-  const [pendingPurchaseAction, setPendingPurchaseAction] = useState<DeepPurchaseAction>("deepen");
-  const [deepReadingCanRetry, setDeepReadingCanRetry] = useState(false);
+  const [paidReading, setPaidReading] = useState("");
+  const [freeToken, setFreeToken] = useState("");
+  const [credits, setCredits] = useState(0);
+  const [packToken, setPackToken] = useState("");
   const [restrictionMessage, setRestrictionMessage] = useState("");
-  const submitSingleReading = trpc.tarot.submitSingleCardReading.useMutation();
-  const submitDeepReadingMutation = trpc.dodo.submitPaidDeepReading.useMutation();
-  const productQuery = trpc.dodo.getDeepReadingProduct.useQuery();
-  const createCheckout = trpc.dodo.createDeepReadingCheckout.useMutation();
-  const purchaseFromReturn = new URLSearchParams(window.location.search).get("dodo_purchase") ?? "";
-  const purchaseQuery = trpc.dodo.getDeepReadingPurchase.useQuery(
-    { purchaseToken: purchaseFromReturn || "pending-purchase-token" },
-    { enabled: Boolean(purchaseFromReturn), refetchInterval: query => query.state.data?.status === "checkout_created" ? 2000 : false },
-  );
+  const packReturn = new URLSearchParams(location.split("?")[1] ?? "").get("tarot_pack") ?? "";
+  const createFree = trpc.dodo.createFreeReading.useMutation();
+  const unlockFree = trpc.dodo.unlockFreeReading.useMutation();
+  const submitCredit = trpc.dodo.submitCreditReading.useMutation();
+  const createPack = trpc.dodo.createCreditPackCheckout.useMutation();
+  const packStatus = trpc.dodo.getCreditPackStatus.useQuery({ packToken: packReturn || "pending-pack-token" }, { enabled: Boolean(packReturn), refetchInterval: query => query.state.data?.status === "checkout_created" ? 2000 : false });
+  const product = trpc.dodo.getCreditPackProduct.useQuery();
 
   useEffect(() => {
-    const purchase = purchaseQuery.data;
-    if (!purchase) return;
-
-    setReadingContext(purchase.context);
-    setDeepQuestion(purchase.question);
-    setDeepPurchaseToken(purchase.purchaseToken);
-    setPendingPurchaseAction(purchase.action);
-
-    if (purchase.status === "paid") {
-      setDeepCards([]);
-      setDeepReading("");
-      setDeepReadingCanRetry(false);
-      setDeepDeck(createIndependentReadingDeck());
-      setStep("deep-cards");
-      return;
+    const returned = packStatus.data;
+    if (!returned) return;
+    setEmail(returned.email);
+    setCredits(returned.credits);
+    setPackToken(packReturn);
+    if (returned.status === "paid") {
+      setPaidQuestion("");
+      setPaidCards([]);
+      setPaidDeck([]);
+      setStep("paid-question");
+    } else {
+      setStep("checkout");
     }
+  }, [packStatus.data, packReturn]);
 
-    if (purchase.status === "checkout_created" || purchase.status === "generating" || purchase.status === "consumed") {
-      setStep("checkout-status");
-    }
-  }, [purchaseQuery.data]);
-
-  const selectReadingContext = (context: ReadingContext) => {
-    setReadingContext(context);
+  const chooseContext = (next: ReadingContext) => {
+    setContext(next);
     setRestrictionMessage("");
-    if (contextSelectionMode === "new-question") {
-      setStep("new-question");
-      return;
-    }
-    setOriginalQuestion("");
+    setQuestion("");
     setStep("intro");
   };
 
-  const beginSingleDraw = () => {
-    if (!readingContext || originalQuestion.trim().length < 10) return;
-    if (isRestrictedQuestion(originalQuestion)) {
-      setRestrictionMessage(RESTRICTED_QUESTION_MESSAGE);
-      return;
-    }
+  const beginFreeDraw = () => {
+    if (!context || question.trim().length < 10) return;
+    if (isRestrictedQuestion(question)) { setRestrictionMessage(RESTRICTED_QUESTION_MESSAGE); return; }
     setRestrictionMessage("");
-    setSingleCard(null);
-    setFreeReading("");
-    setSingleDeck(createIndependentReadingDeck());
-    setStep("single-cards");
+    setFreeCards([]);
+    setFreeDeck(createIndependentDeck());
+    setStep("free-cards");
   };
 
-  const toggleSingleCard = (card: TarotCard) => {
-    setSingleCard(current => current?.id === card.id ? null : selectSingleCard(card));
-  };
+  const toggleFreeCard = (card: TarotCard) => setFreeCards(current => toggleDeepCards(current, card));
+  const togglePaidCard = (card: TarotCard) => setPaidCards(current => toggleDeepCards(current, card));
 
-  const submitFreeReading = async () => {
-    if (!singleCard || !readingContext || originalQuestion.trim().length < 10) return;
-    setStep("free-result");
-    setFreeReading("");
+  const submitFreeCards = async () => {
+    if (!context || freeCards.length !== 3) return;
     try {
-      const result = await submitSingleReading.mutateAsync({
-        situation: originalQuestion.trim(),
-        context: readingContext,
-        card: { id: singleCard.id, orientation: singleCard.orientation },
-      });
+      const result = await createFree.mutateAsync({ situation: question.trim(), context, cards: freeCards.map(({ id, orientation }) => ({ id, orientation })) });
+      setFreeToken(result.readingToken);
+      setFreeCards(normalizeSelection(result.cards));
+      setStep("email");
+    } catch (error: any) { toast.error(error?.message ?? "No pudimos preparar tu tirada."); }
+  };
+
+  const unlock = async () => {
+    if (!freeToken || !email.trim()) return;
+    try {
+      const result = await unlockFree.mutateAsync({ readingToken: freeToken, email: email.trim(), marketingConsent });
       setFreeReading(result.reading);
-    } catch (error) {
-      console.error(error);
-      setFreeReading("No pude completar la lectura en este momento. Volvé a intentarlo en unos segundos.");
-      toast.error("No pudimos generar tu lectura. Probá nuevamente.");
-    }
+      setCredits(result.credits);
+      setFreeCards(normalizeSelection(result.cards));
+      setStep("free-result");
+    } catch (error: any) { toast.error(error?.message ?? "No pudimos desbloquear tu lectura."); }
   };
 
-  const prepareDeepPurchase = (question: string, action: DeepPurchaseAction) => {
-    const resolved = question.trim();
-    if (!readingContext || resolved.length < 10) return;
-    if (isRestrictedQuestion(resolved)) {
-      setRestrictionMessage(RESTRICTED_QUESTION_MESSAGE);
-      return;
-    }
+  const startPaid = () => {
+    if (!email) { toast.error("Primero necesitás desbloquear tu lectura gratuita."); return; }
+    if (credits > 0) { setPaidQuestion(""); setStep("paid-question"); } else setStep("paywall");
+  };
+
+  const beginPaidDraw = () => {
+    if (paidQuestion.trim().length < 10 || !context) return;
+    if (isRestrictedQuestion(paidQuestion)) { setRestrictionMessage(RESTRICTED_QUESTION_MESSAGE); return; }
     setRestrictionMessage("");
-    setDeepQuestion(resolved);
-    setPendingPurchaseAction(action);
-    setStep("paywall");
+    setPaidCards([]);
+    setPaidDeck(createIndependentDeck());
+    setStep("paid-cards");
   };
 
-  const deepenOriginalQuestion = () => {
-    prepareDeepPurchase(resolveDeepQuestion({ originalQuestion, newQuestion, useOriginalQuestion: true }), "deepen");
-  };
-
-  const startAnotherQuestion = () => {
-    setNewQuestion("");
-    setRestrictionMessage("");
-    setContextSelectionMode("new-question");
-    setStep("context");
-  };
-
-  const submitNewQuestion = () => {
-    prepareDeepPurchase(resolveDeepQuestion({ originalQuestion, newQuestion, useOriginalQuestion: false }), "new_question");
-  };
-
-  const beginDodoCheckout = async () => {
-    if (!readingContext || deepQuestion.length < 10) return;
+  const submitPaid = async () => {
+    if (!context || paidCards.length !== 3) return;
     try {
-      const checkout = await createCheckout.mutateAsync({
-        question: deepQuestion,
-        context: readingContext,
-        action: pendingPurchaseAction,
-        origin: window.location.origin,
-      });
-      window.location.assign(checkout.checkoutUrl);
-    } catch (error: any) {
-      toast.error(error?.message ?? "No pudimos iniciar el checkout. Probá nuevamente.");
-    }
+      const result = await submitCredit.mutateAsync({ email, question: paidQuestion.trim(), context, cards: paidCards.map(({ id, orientation }) => ({ id, orientation })) });
+      setPaidReading(result.reading);
+      setCredits(result.credits);
+      setPaidCards(normalizeSelection(result.cards));
+      setStep("paid-result");
+    } catch (error: any) { toast.error(error?.message ?? "No pudimos generar la lectura. Tu crédito fue restaurado si correspondía."); }
   };
 
-  const toggleDeepCard = (card: TarotCard) => {
-    setDeepCards(current => toggleDeepCards(current, card));
-  };
-
-  const handleDeepReading = async () => {
-    if (!deepPurchaseToken || deepCards.length !== 3) return;
-    setStep("deep-result");
-    setDeepReading("");
+  const buyPack = async () => {
+    if (!email || !product.data?.configured) return;
     try {
-      const result = await submitDeepReadingMutation.mutateAsync({
-        purchaseToken: deepPurchaseToken,
-        cards: deepCards.map(({ id, orientation }) => ({ id, orientation })),
-      });
-      setDeepReading(result.reading);
-      setDeepReadingCanRetry(false);
-    } catch (error) {
-      console.error(error);
-      setDeepReading("Tu pago sigue válido. No pude completar la lectura todavía; podés reintentarlo sin volver a pagar.");
-      setDeepReadingCanRetry(true);
-      toast.error("No pudimos generar tu lectura. Tu compra no fue consumida.");
-    }
+      const result = await createPack.mutateAsync({ email, origin: window.location.origin });
+      setPackToken(result.packToken);
+      window.location.assign(result.checkoutUrl);
+    } catch (error: any) { toast.error(error?.message ?? "No pudimos iniciar el pago."); }
   };
 
-  return (
-    <div className="tarot-shell flex min-h-screen flex-col">
-      <main className="flex-1">
-        {step === "context" && (
-          <ContextSelectionSection
-            selectedContext={readingContext}
-            showBack={contextSelectionMode === "new-question"}
-            onBack={() => setStep("free-result")}
-            onSelect={selectReadingContext}
-          />
-        )}
-        {step === "intro" && (
-          <IntroSection
-            question={originalQuestion}
-            restrictionMessage={restrictionMessage}
-            onQuestionChange={value => {
-              setOriginalQuestion(value);
-              setRestrictionMessage("");
-            }}
-            onStart={beginSingleDraw}
-          />
-        )}
-        {step === "single-cards" && (
-          <CardSelectionSection
-            deck={singleDeck}
-            selectedCards={singleCard ? [singleCard] : []}
-            requiredCount={1}
-            title="Elegí una carta"
-            continueLabel="Ver mi lectura"
-            onToggle={toggleSingleCard}
-            onBack={() => setStep("intro")}
-            onContinue={submitFreeReading}
-          />
-        )}
-        {step === "free-result" && singleCard && (
-          <ReadingResultSection
-            cards={[singleCard]}
-            reading={freeReading}
-            loading={submitSingleReading.isPending}
-            eyebrow="Tu lectura"
-            title="Lo que dice tu carta"
-            onBack={() => setStep("single-cards")}
-            actions={
-              <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                <Button size="lg" className="tarot-primary-action h-14 text-base font-semibold" onClick={deepenOriginalQuestion}>
-                  Profundizar esta lectura <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="lg" className="tarot-secondary-action h-14 text-base" onClick={startAnotherQuestion}>
-                  Hacer otra pregunta
-                </Button>
-              </div>
-            }
-          />
-        )}
-        {step === "new-question" && (
-          <NewQuestionSection
-            question={newQuestion}
-            restrictionMessage={restrictionMessage}
-            onQuestionChange={value => {
-              setNewQuestion(value);
-              setRestrictionMessage("");
-            }}
-            onBack={() => setStep("free-result")}
-            onContinue={submitNewQuestion}
-          />
-        )}
-        {step === "paywall" && (
-          <DeepReadingPaywall
-            product={productQuery.data}
-            loading={productQuery.isLoading || createCheckout.isPending}
-            onBack={() => setStep(pendingPurchaseAction === "new_question" ? "new-question" : "free-result")}
-            onCheckout={beginDodoCheckout}
-          />
-        )}
-        {step === "checkout-status" && (
-          <CheckoutStatusSection
-            purchase={purchaseQuery.data}
-            isLoading={purchaseQuery.isLoading || purchaseQuery.isFetching}
-            onRetry={() => setStep("paywall")}
-            onBack={() => setStep("free-result")}
-          />
-        )}
-        {step === "deep-cards" && (
-          <CardSelectionSection
-            deck={deepDeck}
-            selectedCards={deepCards}
-            requiredCount={3}
-            title="Elegí tres cartas"
-            continueLabel="Ver mi lectura profunda"
-            onToggle={toggleDeepCard}
-            onBack={() => setStep("free-result")}
-            onContinue={handleDeepReading}
-          />
-        )}
-        {step === "deep-result" && (
-          <ReadingResultSection
-            cards={deepCards}
-            reading={deepReading}
-            loading={submitDeepReadingMutation.isPending}
-            eyebrow="Tu lectura profunda"
-            title="Lo que dicen tus cartas"
-            onBack={() => setStep("deep-cards")}
-            actions={deepReadingCanRetry ? (
-              <Button size="lg" className="tarot-primary-action mt-6 h-14 w-full text-base font-semibold" onClick={handleDeepReading}>
-                Reintentar mi lectura <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            ) : undefined}
-          />
-        )}
-      </main>
-      <SiteFooter />
-    </div>
-  );
+  return <div className="tarot-shell flex min-h-screen flex-col"><main className="flex-1">
+    {step === "context" && <ContextSection selected={context} onSelect={chooseContext} />}
+    {step === "intro" && <QuestionSection title="Haceme tu pregunta" question={question} restriction={restrictionMessage} onChange={value => { setQuestion(value); setRestrictionMessage(""); }} onBack={() => setStep("context")} onContinue={beginFreeDraw} continueLabel="Elegir 3 cartas" />}
+    {step === "free-cards" && <SelectionSection deck={freeDeck} selected={freeCards} title="Elegí 3 cartas" onToggle={toggleFreeCard} onBack={() => setStep("intro")} onContinue={submitFreeCards} continueLabel={createFree.isPending ? "Preparando tu tirada…" : "Continuar"} />}
+    {step === "email" && <EmailGate cards={freeCards} email={email} consent={marketingConsent} loading={unlockFree.isPending} onEmail={setEmail} onConsent={setMarketingConsent} onBack={() => setStep("free-cards")} onContinue={unlock} />}
+    {step === "free-result" && <ResultSection cards={freeCards} reading={freeReading} loading={unlockFree.isPending} title="Lo que dicen tus cartas" eyebrow="Tu lectura gratuita" actions={<Upsell credits={credits} product={product.data} loading={createPack.isPending} onBuy={buyPack} onNew={startPaid} />} />}
+    {step === "paid-question" && <QuestionSection title="Una nueva pregunta" question={paidQuestion} restriction={restrictionMessage} onChange={value => { setPaidQuestion(value); setRestrictionMessage(""); }} onBack={() => setStep("free-result")} onContinue={beginPaidDraw} continueLabel="Elegir 3 cartas" creditLabel={`${credits} ${credits === 1 ? "crédito disponible" : "créditos disponibles"}`} />}
+    {step === "paid-cards" && <SelectionSection deck={paidDeck} selected={paidCards} title="Elegí 3 cartas" onToggle={togglePaidCard} onBack={() => setStep("paid-question")} onContinue={submitPaid} continueLabel={submitCredit.isPending ? "Interpretando…" : "Ver mi lectura"} />}
+    {step === "paid-result" && <ResultSection cards={paidCards} reading={paidReading} loading={submitCredit.isPending} title="Lo que dicen tus cartas" eyebrow={`${credits} ${credits === 1 ? "crédito restante" : "créditos restantes"}`} actions={<div className="mt-7 grid gap-3 sm:grid-cols-2"><Button size="lg" className="tarot-primary-action h-14 text-base font-semibold" onClick={startPaid}>Hacer otra lectura <ArrowRight className="ml-2 h-4 w-4" /></Button><Button variant="outline" size="lg" className="tarot-secondary-action h-14 text-base" onClick={() => setStep("paywall")}>Comprar otro pack</Button></div>} />}
+    {step === "paywall" && <Paywall credits={credits} product={product.data} loading={createPack.isPending} onBack={() => setStep(email ? "free-result" : "context")} onBuy={buyPack} />}
+    {step === "checkout" && <CheckoutStatus status={packStatus.data?.status} loading={packStatus.isLoading || packStatus.isFetching} onBack={() => setStep("paywall")} />}
+  </main><SiteFooter /></div>;
 }
 
-function ContextSelectionSection({
-  selectedContext,
-  showBack,
-  onBack,
-  onSelect,
-}: {
-  selectedContext: ReadingContext | null;
-  showBack: boolean;
-  onBack: () => void;
-  onSelect: (context: ReadingContext) => void;
-}) {
-  return (
-    <section className="tarot-page max-w-3xl py-10 sm:py-20 fade-in">
-      {showBack && (
-        <Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Volver a tu lectura
-        </Button>
-      )}
-      <div className="tarot-surface relative overflow-hidden px-5 py-10 text-center sm:px-12 sm:py-14">
-        <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[var(--tarot-accent)]/80 to-transparent" />
-        <p className="tarot-kicker flex items-center justify-center gap-2"><Sparkles className="h-3.5 w-3.5" /> Tarot de Medianoche</p>
-        <h1 className="mt-4 font-serif text-4xl leading-[0.95] text-foreground sm:text-6xl">Elegí el tema<br className="hidden sm:block" /> de tu consulta</h1>
-        <div className="mt-9 grid gap-4 sm:grid-cols-2">
-          {(["love", "money_work"] as const).map(context => {
-            const isLove = context === "love";
-            const Icon = isLove ? Heart : BriefcaseBusiness;
-            return (
-              <button
-                key={context}
-                type="button"
-                aria-pressed={selectedContext === context}
-                className="group relative min-h-40 overflow-hidden rounded-[var(--tarot-radius-md)] border border-[var(--tarot-border)] bg-[linear-gradient(145deg,oklch(0.29_0.05_314_/_80%),oklch(0.215_0.038_309_/_92%))] p-5 text-left shadow-[var(--tarot-shadow)] transition duration-200 hover:-translate-y-1 hover:border-[var(--tarot-accent)]/80 hover:shadow-[var(--tarot-shadow-lift)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                onClick={() => onSelect(context)}
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--tarot-border)] bg-[var(--tarot-surface-elevated)] text-[var(--tarot-accent-hover)] transition group-hover:scale-105">
-                  <Icon className="h-4 w-4" />
-                </span>
-                <span className="mt-8 block font-serif text-2xl leading-none text-foreground">{READING_CONTEXT_LABELS[context]}</span>
-                <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[var(--tarot-accent-hover)] transition-transform group-hover:translate-x-1" />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
+function createIndependentDeck(): TarotCard[] { return createIndependentReadingDeck(); }
+
+function ContextSection({ selected, onSelect }: { selected: ReadingContext | null; onSelect: (context: ReadingContext) => void }) {
+  return <section className="tarot-page max-w-3xl py-10 sm:py-20 fade-in"><div className="tarot-surface relative overflow-hidden px-5 py-10 text-center sm:px-12 sm:py-14"><p className="tarot-kicker flex items-center justify-center gap-2"><Sparkles className="h-3.5 w-3.5" /> Tarot de Medianoche</p><h1 className="mt-4 font-serif text-4xl leading-[0.95] text-foreground sm:text-6xl">Elegí el tema<br className="hidden sm:block" /> de tu consulta</h1><div className="mt-9 grid gap-4 sm:grid-cols-2">{(["love", "money_work"] as const).map(value => { const love = value === "love"; const Icon = love ? Heart : BriefcaseBusiness; return <button key={value} type="button" aria-pressed={selected === value} onClick={() => onSelect(value)} className="group relative min-h-40 rounded-[var(--tarot-radius-md)] border border-[var(--tarot-border)] bg-[linear-gradient(145deg,oklch(0.29_0.05_314_/_80%),oklch(0.215_0.038_309_/_92%))] p-5 text-left shadow-[var(--tarot-shadow)] transition hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><span className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--tarot-border)] bg-[var(--tarot-surface-elevated)] text-[var(--tarot-accent-hover)]"><Icon className="h-4 w-4" /></span><span className="mt-8 block font-serif text-2xl text-foreground">{READING_CONTEXT_LABELS[value]}</span><ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-[var(--tarot-accent-hover)]" /></button>; })}</div></div></section>;
 }
 
-function IntroSection({
-  question,
-  restrictionMessage,
-  onQuestionChange,
-  onStart,
-}: {
-  question: string;
-  restrictionMessage: string;
-  onQuestionChange: (value: string) => void;
-  onStart: () => void;
-}) {
-  const canStart = question.trim().length >= 10;
-  return (
-    <section className="tarot-page max-w-2xl py-10 sm:py-20 fade-in">
-      <div className="tarot-surface px-5 py-10 sm:px-10 sm:py-14">
-        <p className="tarot-kicker text-center">Tarot de Medianoche</p>
-        <h1 className="mt-4 text-center font-serif text-4xl leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl">Haceme tu pregunta</h1>
-        <p className="mx-auto mt-5 max-w-lg text-center text-base leading-relaxed text-muted-foreground sm:text-lg">Escribí lo que querés saber y elegí una carta.</p>
-        <label htmlFor="question" className="sr-only">Tu pregunta</label>
-        <textarea
-          id="question"
-          value={question}
-          onChange={event => onQuestionChange(event.target.value)}
-          maxLength={500}
-          rows={4}
-          placeholder="¿Qué querés preguntarle al tarot?"
-          className="mt-8 w-full resize-none rounded-[var(--tarot-radius-sm)] border border-[var(--tarot-border)] bg-[oklch(0.17_0.032_307_/_78%)] px-4 py-4 text-left text-foreground shadow-inner outline-none transition placeholder:text-muted-foreground/70 focus:border-[var(--tarot-accent)] focus:ring-2 focus:ring-[var(--tarot-accent)]/25"
-        />
-        <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-          <span>Una pregunta concreta ayuda a enfocar la lectura.</span>
-          <span>{question.length}/500</span>
-        </div>
-        {restrictionMessage && <p role="alert" className="tarot-surface-elevated mt-5 px-4 py-3 text-left text-sm leading-relaxed text-destructive">{restrictionMessage}</p>}
-        <div className="mt-8 text-center">
-          <Button onClick={onStart} disabled={!canStart} size="lg" className="tarot-primary-action h-14 px-8 text-base font-semibold">
-            Elegir una carta <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-          <p className="mt-4 text-xs text-muted-foreground">Lectura inicial gratuita · sin registro</p>
-        </div>
-      </div>
-      <div className="mx-auto mt-10 grid max-w-xs grid-cols-3 gap-3 sm:gap-5">
-        {["☾", "♡", "✦"].map((symbol, index) => (
-          <div
-            key={symbol}
-            className="flex aspect-[2/3] items-center justify-center rounded-[var(--tarot-radius-sm)] border border-[var(--tarot-border)] bg-[linear-gradient(145deg,var(--tarot-surface-elevated),var(--tarot-night))] text-3xl text-[var(--tarot-accent-hover)]/75 shadow-[var(--tarot-shadow)]"
-            style={{ animation: `fadeIn 0.32s ${index * 0.08}s both cubic-bezier(0.23, 1, 0.32, 1)` }}
-          >
-            {symbol}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
+function QuestionSection({ title, question, restriction, creditLabel, onChange, onBack, onContinue, continueLabel }: { title: string; question: string; restriction: string; creditLabel?: string; onChange: (value: string) => void; onBack: () => void; onContinue: () => void; continueLabel: string }) {
+  return <section className="tarot-page max-w-2xl py-10 sm:py-20 fade-in"><Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground"><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Button><div className="tarot-surface px-5 py-10 sm:px-10 sm:py-14"><p className="tarot-kicker text-center">Tarot de Medianoche</p><h1 className="mt-4 text-center font-serif text-4xl leading-tight text-foreground sm:text-5xl">{title}</h1><p className="mx-auto mt-5 max-w-lg text-center text-base leading-relaxed text-muted-foreground">Escribí lo que querés saber y dejá que la tirada abra una perspectiva.</p><textarea value={question} onChange={event => onChange(event.target.value)} maxLength={800} rows={5} placeholder="¿Qué querés preguntarle al tarot?" className="mt-8 w-full resize-none rounded-[var(--tarot-radius-sm)] border border-[var(--tarot-border)] bg-[oklch(0.17_0.032_307_/_78%)] px-4 py-4 text-foreground outline-none transition placeholder:text-muted-foreground/70 focus:border-[var(--tarot-accent)] focus:ring-2 focus:ring-[var(--tarot-accent)]/25" /><div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>Una pregunta concreta ayuda a enfocar la lectura.</span><span>{question.length}/800</span></div>{restriction && <p role="alert" className="tarot-surface-elevated mt-5 px-4 py-3 text-left text-sm leading-relaxed text-destructive">{restriction}</p>}<Button onClick={onContinue} disabled={question.trim().length < 10} size="lg" className="tarot-primary-action mt-8 h-14 w-full text-base font-semibold">{continueLabel}<ArrowRight className="ml-2 h-4 w-4" /></Button>{creditLabel && <p className="mt-4 text-center text-xs text-muted-foreground">{creditLabel}</p>}</div></section>;
 }
 
-function CardSelectionSection({
-  deck,
-  selectedCards,
-  requiredCount,
-  title,
-  continueLabel,
-  onToggle,
-  onBack,
-  onContinue,
-}: {
-  deck: TarotCard[];
-  selectedCards: TarotSelection[];
-  requiredCount: number;
-  title: string;
-  continueLabel: string;
-  onToggle: (card: TarotCard) => void;
-  onBack: () => void;
-  onContinue: () => void;
-}) {
-  const selectedIds = selectedCards.map(card => card.id);
-  const remaining = requiredCount - selectedCards.length;
-  const selectionText = remaining > 0
-    ? `Te queda${remaining === 1 ? "" : "n"} ${remaining} ${remaining === 1 ? "carta" : "cartas"} por elegir.`
-    : `${requiredCount === 1 ? "Carta elegida." : "Tres cartas elegidas."}`;
-
-  return (
-    <section className="tarot-page max-w-5xl py-7 pb-24 fade-in">
-      <Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Volver a la pregunta
-      </Button>
-      <div className="text-center">
-        <p className="tarot-kicker">Tarot de Medianoche</p>
-        <h2 className="mt-3 font-serif text-4xl leading-tight text-foreground sm:text-5xl">{title}</h2>
-        <p className="mt-3 text-sm text-muted-foreground sm:text-base">{selectionText}</p>
-      </div>
-      <div className="tarot-surface mt-8 grid grid-cols-4 justify-items-center gap-3 p-3 sm:grid-cols-6 sm:gap-4 sm:p-6">
-        {deck.map(card => {
-          const selected = selectedCards.find(item => item.id === card.id);
-          const order = selectedIds.indexOf(card.id);
-          return (
-            <div key={card.id} className="relative">
-              <TarotCardView
-                back={!selected}
-                revealed={Boolean(selected)}
-                name={card.name}
-                emoji={card.emoji}
-                selected={Boolean(selected)}
-                orientation={selected?.orientation}
-                size="sm"
-                onClick={() => onToggle(card)}
-              />
-              {selected && (
-                <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground shadow-[0_4px_12px_var(--tarot-accent-glow)]">
-                  {order + 1}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div className="sticky bottom-4 z-10 mt-8 rounded-[var(--tarot-radius-sm)] bg-[var(--tarot-void)]/88 p-2 backdrop-blur-lg">
-        <Button onClick={onContinue} disabled={selectedCards.length !== requiredCount} size="lg" className="tarot-primary-action h-14 w-full text-base font-semibold">
-          {continueLabel} <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
-    </section>
-  );
+function SelectionSection({ deck, selected, title, onToggle, onBack, onContinue, continueLabel }: { deck: TarotCard[]; selected: TarotSelection[]; title: string; onToggle: (card: TarotCard) => void; onBack: () => void; onContinue: () => void; continueLabel: string }) {
+  const ids = selected.map(card => card.id); const remaining = 3 - selected.length;
+  return <section className="tarot-page max-w-5xl py-7 pb-24 fade-in"><Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground"><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Button><div className="text-center"><p className="tarot-kicker">Tarot de Medianoche</p><h2 className="mt-3 font-serif text-4xl text-foreground sm:text-5xl">{title}</h2><p className="mt-3 text-sm text-muted-foreground">{remaining ? `Te quedan ${remaining} ${remaining === 1 ? "carta" : "cartas"} por elegir.` : "Tres cartas elegidas."}</p></div><div className="tarot-surface mt-8 grid grid-cols-4 justify-items-center gap-3 p-3 sm:grid-cols-6 sm:gap-4 sm:p-6">{deck.map(card => { const chosen = selected.find(item => item.id === card.id); const order = ids.indexOf(card.id); return <div key={card.id} className="relative"><TarotCardView back={!chosen} revealed={Boolean(chosen)} name={card.name} emoji={card.emoji} selected={Boolean(chosen)} orientation={chosen?.orientation} size="sm" onClick={() => onToggle(card)} />{chosen && <span className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">{order + 1}</span>}</div>; })}</div><div className="sticky bottom-4 z-10 mt-8 rounded-[var(--tarot-radius-sm)] bg-[var(--tarot-void)]/88 p-2 backdrop-blur-lg"><Button onClick={onContinue} disabled={selected.length !== 3} size="lg" className="tarot-primary-action h-14 w-full text-base font-semibold">{continueLabel}<ArrowRight className="ml-2 h-4 w-4" /></Button></div></section>;
 }
 
-function NewQuestionSection({
-  question,
-  restrictionMessage,
-  onQuestionChange,
-  onBack,
-  onContinue,
-}: {
-  question: string;
-  restrictionMessage: string;
-  onQuestionChange: (value: string) => void;
-  onBack: () => void;
-  onContinue: () => void;
-}) {
-  const canContinue = question.trim().length >= 10;
-  return (
-    <section className="tarot-page max-w-2xl py-8 pb-16 fade-in">
-      <Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Volver a tu lectura
-      </Button>
-      <div className="tarot-surface px-5 py-9 sm:px-10">
-        <h1 className="text-center font-serif text-4xl leading-tight text-foreground sm:text-5xl">Haceme tu pregunta</h1>
-        <p className="mt-4 text-center text-muted-foreground">Escribí lo que querés saber y elegí una carta.</p>
-        <textarea
-          id="new-question"
-          value={question}
-          onChange={event => onQuestionChange(event.target.value)}
-          maxLength={500}
-          rows={4}
-          placeholder="¿Qué querés preguntarle al tarot?"
-          className="mt-8 w-full resize-none rounded-[var(--tarot-radius-sm)] border border-[var(--tarot-border)] bg-[oklch(0.17_0.032_307_/_78%)] px-4 py-4 text-left text-foreground shadow-inner outline-none transition placeholder:text-muted-foreground/70 focus:border-[var(--tarot-accent)] focus:ring-2 focus:ring-[var(--tarot-accent)]/25"
-        />
-        <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-          <span>Una pregunta concreta ayuda a enfocar la lectura.</span>
-          <span>{question.length}/500</span>
-        </div>
-        {restrictionMessage && <p role="alert" className="tarot-surface-elevated mt-5 px-4 py-3 text-sm leading-relaxed text-destructive">{restrictionMessage}</p>}
-        <Button onClick={onContinue} disabled={!canContinue} size="lg" className="tarot-primary-action mt-8 h-14 w-full text-base font-semibold">
-          Continuar al pago <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
-    </section>
-  );
+function EmailGate({ cards, email, consent, loading, onEmail, onConsent, onBack, onContinue }: { cards: TarotSelection[]; email: string; consent: boolean; loading: boolean; onEmail: (value: string) => void; onConsent: (value: boolean) => void; onBack: () => void; onContinue: () => void }) {
+  return <section className="tarot-page max-w-xl py-10 sm:py-20 fade-in"><Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground"><ArrowLeft className="mr-2 h-4 w-4" /> Volver a las cartas</Button><div className="tarot-surface px-5 py-10 sm:px-10 sm:py-12"><div className="mb-7 flex justify-center gap-3">{cards.map(card => <TarotCardView key={card.id} name={card.name} emoji={card.emoji} revealed orientation={card.orientation} size="sm" />)}</div><span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-[var(--tarot-border)] bg-[var(--tarot-surface-elevated)] text-[var(--tarot-accent-hover)]"><Mail className="h-5 w-5" /></span><h1 className="mt-5 text-center font-serif text-4xl leading-tight text-foreground sm:text-5xl">Tus cartas ya están abiertas</h1><p className="mt-5 text-center leading-relaxed text-muted-foreground">Dejanos tu email para desbloquear la interpretación completa de esta tirada. Lo necesitamos una sola vez para evitar repetir indefinidamente la lectura gratuita.</p><label htmlFor="tarot-email" className="mt-8 block text-sm font-medium text-foreground">Tu email</label><input id="tarot-email" type="email" value={email} onChange={event => onEmail(event.target.value)} placeholder="vos@ejemplo.com" className="mt-2 h-14 w-full rounded-[var(--tarot-radius-sm)] border border-[var(--tarot-border)] bg-[oklch(0.17_0.032_307_/_78%)] px-4 text-foreground outline-none focus:border-[var(--tarot-accent)] focus:ring-2 focus:ring-[var(--tarot-accent)]/25" /><label className="mt-5 flex cursor-pointer gap-3 text-sm leading-relaxed text-muted-foreground"><input type="checkbox" checked={consent} onChange={event => onConsent(event.target.checked)} className="mt-1 h-4 w-4 accent-[var(--tarot-accent)]" />Sí, quiero recibir novedades y contenidos de Tarot de Medianoche.</label><Button onClick={onContinue} disabled={!/^\S+@\S+\.\S+$/.test(email.trim()) || loading} size="lg" className="tarot-primary-action mt-8 h-14 w-full text-base font-semibold">{loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Interpretando tus cartas…</> : <>Desbloquear mi lectura<ArrowRight className="ml-2 h-4 w-4" /></>}</Button><p className="mt-4 text-center text-xs leading-relaxed text-muted-foreground">El consentimiento de novedades es opcional y podés retirarlo cuando quieras.</p></div></section>;
 }
 
-function formatDodoPrice(amountMinor: number, currency: string) {
-  const fractionDigits = new Intl.NumberFormat("es-UY", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
-  return new Intl.NumberFormat("es-UY", { style: "currency", currency }).format(amountMinor / (10 ** fractionDigits));
+function ResultSection({ cards, reading, loading, eyebrow, title, actions }: { cards: TarotSelection[]; reading: string; loading: boolean; eyebrow: string; title: string; actions?: React.ReactNode }) {
+  return <section className="tarot-page max-w-3xl py-8 pb-16 fade-in"><div className="text-center"><p className="tarot-kicker">{eyebrow}</p><h1 className="mt-2 font-serif text-3xl leading-tight text-foreground sm:text-4xl">{title}</h1></div><div className="mt-5 flex justify-center gap-3 sm:gap-5">{cards.map(card => <TarotCardView key={card.id} name={card.name} emoji={card.emoji} revealed orientation={card.orientation} size="md" />)}</div><Card className="tarot-reading-surface mt-7 border-0 p-5 shadow-none sm:p-7">{loading ? <div className="flex flex-col items-center gap-4 py-10 text-center text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin text-[var(--tarot-accent-hover)]" /><span className="font-serif text-lg text-foreground">Interpretando la combinación de tus cartas…</span></div> : <div className="whitespace-pre-line font-serif text-base leading-[1.65] text-foreground sm:text-lg">{reading}</div>}</Card>{!loading && actions}</section>;
 }
 
-function DeepReadingPaywall({
-  product,
-  loading,
-  onBack,
-  onCheckout,
-}: {
-  product: { configured: boolean; productId: string | null; amountMinor: number | null; currency: string | null } | undefined;
-  loading: boolean;
-  onBack: () => void;
-  onCheckout: () => void;
-}) {
-  const configured = product?.configured && product.amountMinor !== null && product.currency;
-  return (
-    <section className="tarot-page max-w-2xl py-8 pb-16 fade-in">
-      <Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Volver
-      </Button>
-      <div className="tarot-surface px-5 py-9 text-center sm:px-10 sm:py-12">
-        <p className="tarot-kicker">Lectura profunda</p>
-        <h1 className="mt-3 font-serif text-4xl leading-tight text-foreground sm:text-5xl">Tres cartas para tu pregunta</h1>
-        <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-muted-foreground">Incluye una tirada independiente de tres cartas y una interpretación personalizada.</p>
-        {configured ? (
-          <p className="mt-8 font-serif text-4xl text-foreground">{formatDodoPrice(product.amountMinor!, product.currency!)}</p>
-        ) : (
-          <p className="mt-8 text-sm text-muted-foreground">La compra está siendo configurada. Volvé a intentarlo en unos minutos.</p>
-        )}
-        <Button onClick={onCheckout} disabled={!configured || loading} size="lg" className="tarot-primary-action mt-8 h-14 w-full text-base font-semibold">
-          {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Preparando checkout</> : "Continuar al pago"}
-        </Button>
-      </div>
-    </section>
-  );
+function Upsell({ credits, product, loading, onBuy, onNew }: { credits: number; product?: { configured: boolean; amountMinor: number | null; currency: string | null }; loading: boolean; onBuy: () => void; onNew: () => void }) {
+  const price = product?.amountMinor ? new Intl.NumberFormat("es-UY", { style: "currency", currency: product.currency ?? "USD" }).format(product.amountMinor / 100) : "USD 6,99";
+  return <div className="tarot-surface-elevated mt-8 p-5 sm:p-7"><p className="tarot-kicker">{credits ? `${credits} créditos disponibles` : "Si querés seguir"}</p><h2 className="mt-2 font-serif text-2xl text-foreground">Tres lecturas adicionales</h2><p className="mt-3 text-sm leading-relaxed text-muted-foreground">Cada lectura paga incluye una nueva pregunta, una nueva tirada de tres cartas y una interpretación completa.</p><p className="mt-5 font-serif text-3xl text-foreground">{price}</p><Button onClick={credits ? onNew : onBuy} disabled={loading || (!product?.configured && !credits)} size="lg" className="tarot-primary-action mt-5 h-14 w-full font-semibold">{credits ? "Hacer una nueva lectura" : loading ? "Preparando pago…" : "Comprar pack de 3 lecturas"}<ArrowRight className="ml-2 h-4 w-4" /></Button></div>;
 }
 
-function CheckoutStatusSection({
-  purchase,
-  isLoading,
-  onRetry,
-  onBack,
-}: {
-  purchase: { status: "checkout_created" | "paid" | "generating" | "consumed"; lastGenerationError: string | null } | undefined;
-  isLoading: boolean;
-  onRetry: () => void;
-  onBack: () => void;
-}) {
-  const waiting = !purchase || purchase.status === "checkout_created" || purchase.status === "generating";
-  return (
-    <section className="tarot-page max-w-xl py-12 sm:py-20 fade-in">
-      <div className="tarot-surface px-6 py-10 text-center sm:px-10">
-        {waiting && <Loader2 className="mx-auto h-5 w-5 animate-spin text-[var(--tarot-accent-hover)]" />}
-        <p className="tarot-kicker mt-4">Pago</p>
-        <h1 className="mt-3 font-serif text-3xl text-foreground">{waiting ? "Estamos verificando tu pago" : "Esta compra ya fue utilizada"}</h1>
-        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{waiting ? "Cuando Dodo confirme el pago, vas a poder elegir tus tres cartas. No cierres esta pantalla." : "Cada compra habilita una única lectura profunda."}</p>
-        {!isLoading && purchase?.status === "checkout_created" && <Button variant="outline" className="tarot-secondary-action mt-7" onClick={onRetry}>Volver a intentar el pago</Button>}
-        <Button variant="ghost" className="mt-4 text-muted-foreground" onClick={onBack}>Volver a mi lectura gratuita</Button>
-      </div>
-    </section>
-  );
+function Paywall({ credits, product, loading, onBack, onBuy }: { credits: number; product?: { configured: boolean; amountMinor: number | null; currency: string | null }; loading: boolean; onBack: () => void; onBuy: () => void }) {
+  const price = product?.amountMinor ? new Intl.NumberFormat("es-UY", { style: "currency", currency: product.currency ?? "USD" }).format(product.amountMinor / 100) : "USD 6,99";
+  return <section className="tarot-page max-w-xl py-10 sm:py-20 fade-in"><Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground"><ArrowLeft className="mr-2 h-4 w-4" /> Volver</Button><div className="tarot-surface px-5 py-10 text-center sm:px-10"><p className="tarot-kicker">Tus créditos</p><h1 className="mt-3 font-serif text-4xl text-foreground">Seguí cuando quieras</h1><p className="mt-5 leading-relaxed text-muted-foreground">Ya no tenés créditos disponibles. Comprá otro pack de tres lecturas y seguí haciendo preguntas.</p><p className="mt-8 font-serif text-4xl text-foreground">{price}</p><Button onClick={onBuy} disabled={loading || !product?.configured} size="lg" className="tarot-primary-action mt-8 h-14 w-full font-semibold">{loading ? "Preparando pago…" : "Comprar pack de 3 lecturas"}<ArrowRight className="ml-2 h-4 w-4" /></Button></div></section>;
 }
 
-function ReadingResultSection({
-  cards,
-  reading,
-  loading,
-  eyebrow,
-  title,
-  onBack,
-  actions,
-}: {
-  cards: TarotSelection[];
-  reading: string;
-  loading: boolean;
-  eyebrow: string;
-  title: string;
-  onBack: () => void;
-  actions?: React.ReactNode;
-}) {
-  const loadingMessage = cards.length === 1
-    ? "Interpretando tu carta…"
-    : "Interpretando la combinación de tus cartas…";
-
-  return (
-    <section className="tarot-page max-w-3xl py-8 pb-16 fade-in">
-      <Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground">
-        <ArrowLeft className="mr-2 h-4 w-4" /> Volver a las cartas
-      </Button>
-      <div className="text-center">
-        <p className="tarot-kicker">{eyebrow}</p>
-        <h1 className="mt-2 text-center font-serif text-3xl leading-[1.05] text-foreground sm:text-4xl">{title}</h1>
-      </div>
-      <div className={`mt-5 flex justify-center ${cards.length === 1 ? "gap-0" : "gap-3 sm:gap-5"}`}>
-        {cards.map(card => (
-          <TarotCardView
-            key={card.id}
-            name={card.name}
-            emoji={card.emoji}
-            revealed
-            orientation={card.orientation}
-            size={cards.length === 1 ? "lg" : "md"}
-          />
-        ))}
-      </div>
-      <Card className="tarot-reading-surface mt-7 min-h-0 gap-0 border-0 p-5 shadow-none sm:p-7">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center gap-4 py-10 text-center text-muted-foreground">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full border border-[var(--tarot-border)] bg-[var(--tarot-surface-elevated)] shadow-[0_0_22px_var(--tarot-accent-glow)]">
-              <Loader2 className="h-4 w-4 animate-spin text-[var(--tarot-accent-hover)]" />
-            </span>
-            <span className="font-serif text-lg text-foreground">{loadingMessage}</span>
-          </div>
-        ) : (
-          <div className="font-serif text-base leading-[1.65] text-foreground whitespace-pre-line sm:text-lg">{reading}</div>
-        )}
-      </Card>
-      {!loading && actions}
-    </section>
-  );
-}
-
-export type { CardOrientation };
+function CheckoutStatus({ status, loading, onBack }: { status?: "checkout_created" | "paid"; loading: boolean; onBack: () => void }) { return <section className="tarot-page max-w-xl py-12 sm:py-20 fade-in"><div className="tarot-surface px-6 py-10 text-center sm:px-10"><Loader2 className="mx-auto h-5 w-5 animate-spin text-[var(--tarot-accent-hover)]" /><p className="tarot-kicker mt-4">Pago</p><h1 className="mt-3 font-serif text-3xl text-foreground">{status === "paid" ? "Pack acreditado" : "Estamos verificando tu pago"}</h1><p className="mt-4 text-sm leading-relaxed text-muted-foreground">{status === "paid" ? "Tus créditos ya están disponibles." : loading ? "Esperá un momento mientras confirmamos el pago." : "Cuando Dodo confirme el pago, vas a poder hacer nuevas lecturas."}</p><Button variant="ghost" className="mt-5" onClick={onBack}>Volver</Button></div></section>; }

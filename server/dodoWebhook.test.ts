@@ -29,3 +29,20 @@ describe("separación de marcas del webhook Dodo", () => {
     expect(source).toContain("purchase.dodoBrandId !== paymentBrandId");
   });
 });
+
+
+describe("pack de créditos del nuevo funnel", () => {
+  it("recibe el metadata del pack y acredita antes de devolver 200", () => {
+    const source = readFileSync(resolve(process.cwd(), "server/dodoWebhook.ts"), "utf8");
+    expect(source).toContain("tarot_pack_token");
+    expect(source).toContain("grantTarotCreditPack");
+    expect(source).toContain("payment.product_cart?.[0]?.product_id");
+    expect(source).toContain("res.status(200).end();");
+  });
+
+  it("conserva la idempotencia específica del pack", () => {
+    const source = readFileSync(resolve(process.cwd(), "server/dodoWebhook.ts"), "utf8");
+    expect(source.indexOf("const isFirstPackDelivery")).toBeLessThan(source.indexOf("await grantTarotCreditPack"));
+    expect(source).toContain("if (!isFirstPackDelivery)");
+  });
+});
