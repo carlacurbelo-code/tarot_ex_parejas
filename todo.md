@@ -214,7 +214,7 @@
 
 - [ ] Continuar la generación del diseño visual de las cartas pendientes en lotes consistentes mientras se cargan las credenciales Dodo.
 - [ ] Revisar cada lote generado contra el sistema visual aprobado antes de incorporarlo al catálogo.
-- [ ] Mantener separadas la producción de imágenes y la activación del checkout hasta completar las credenciales y validaciones.
+- [x] Mantener separadas la producción de imágenes y la activación del checkout hasta completar las credenciales y validaciones.
 
 - [x] Investigar por qué el pago Dodo aprobado no actualiza la compra ni registra `payment.succeeded`.
 - [x] Comparar la entrega real del webhook con la ruta, firma, entorno y asociación por metadata.
@@ -271,3 +271,16 @@
 - [x] Hacer que la ilustración ocupe toda la superficie de la carta, sin marco pastel ni contenido duplicado por encima.
 - [x] Conservar nombre, orientación invertida 180° y zoom de revelado sin cambiar otros flujos.
 - [x] Verificar selector y resultado en móvil/escritorio y ejecutar TypeScript, tests y build.
+
+## Optimización de carga de ilustraciones
+- [ ] Medir peso, dimensiones y formato de los activos actuales.
+- [ ] Crear versiones optimizadas sin alterar la composición visual y subirlas al almacenamiento persistente.
+- [ ] Actualizar referencias, añadir carga eficiente y validar rendimiento/calidad.
+- [ ] Ejecutar TypeScript, tests y build; documentar y publicar el ajuste.
+
+## Optimización de ilustraciones — rendimiento
+- [x] Convertir las 38 PNG existentes a WebP optimizado conservando proporción y contenido
+- [x] Subir las versiones optimizadas y actualizar `shared/tarot.ts` sin alterar identificadores ni lógica
+- [x] Añadir carga eficiente (`loading`/`decoding`) en `TarotCardView`
+- [x] Verificar visualmente cartas con ilustración y cartas placeholder en escritorio y móvil
+- [x] Ejecutar TypeScript, Vitest y build; documentar reducción de peso y publicar checkpoint

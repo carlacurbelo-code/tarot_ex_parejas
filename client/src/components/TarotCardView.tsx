@@ -65,7 +65,7 @@ export function TarotCardView({
         ) : revealed ? (
           imageSrc ? (
             <div className="tarot-card-reveal h-full w-full">
-              <img src={imageSrc} alt={name ?? "Ilustración de tarot"} className="block h-full w-full object-cover" />
+              <img src={imageSrc} alt={name ?? "Ilustración de tarot"} loading={isClickable ? "lazy" : "eager"} decoding="async" className="block h-full w-full object-cover" />
             </div>
           ) : (
             <div className="tarot-card-reveal flex h-full w-full flex-col items-center justify-between p-2.5 sm:p-3">
@@ -79,7 +79,7 @@ export function TarotCardView({
           )
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center p-3">
-            {imageSrc ? <img src={imageSrc} alt={name ?? "Ilustración de tarot"} className="h-full w-full rounded-[0.55rem] object-cover shadow-[inset_0_0_0_1px_oklch(1_0_0/.5)]" /> : <span className="text-2xl text-[oklch(0.47_0.088_300)]/80">{emoji}</span>}
+            {imageSrc ? <img src={imageSrc} alt={name ?? "Ilustración de tarot"} loading="lazy" decoding="async" className="h-full w-full rounded-[0.55rem] object-cover shadow-[inset_0_0_0_1px_oklch(1_0_0/.5)]" /> : <span className="text-2xl text-[oklch(0.47_0.088_300)]/80">{emoji}</span>}
             {!imageSrc && <p className="mt-2 font-serif text-center leading-tight text-[oklch(0.38_0.065_300)]">{name}</p>}
           </div>
         )}
