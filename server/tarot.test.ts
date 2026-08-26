@@ -154,6 +154,15 @@ describe("tarot deck integrity", () => {
     expect(component).toContain('isReversed && "rotate-180"');
     expect(component).toContain('transition-[border-color,box-shadow] duration-200');
     expect(component).not.toContain('transition-all duration-200');
+    expect(component).toContain('tarot-card-reveal');
+
+    const styles = fs.readFileSync(
+      path.resolve(import.meta.dirname, "../client/src/index.css"),
+      "utf8",
+    );
+    expect(styles).toContain('.tarot-card-reveal');
+    expect(styles).toContain('animation: tarotCardReveal 360ms');
+    expect(styles).toContain('.tarot-card-reveal {\n      animation: none;');
   });
 
   it("baraja mazos visibles independientes antes de cada cuadrícula de Home", () => {

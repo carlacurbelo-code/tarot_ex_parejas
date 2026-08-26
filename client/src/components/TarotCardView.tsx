@@ -63,7 +63,7 @@ export function TarotCardView({
             <span className="font-serif text-2xl text-[oklch(0.52_0.09_301/.84)] drop-shadow-[0_1px_0_oklch(1_0_0/.7)]">✦</span>
           </div>
         ) : revealed ? (
-          <div className="flex h-full w-full flex-col items-center justify-between p-2.5 sm:p-3">
+          <div className="tarot-card-reveal flex h-full w-full flex-col items-center justify-between p-2.5 sm:p-3">
             <div className="flex flex-1 items-center justify-center">
               {imageSrc ? <img src={imageSrc} alt="" className="h-full w-full rounded-[0.55rem] object-cover shadow-[inset_0_0_0_1px_oklch(1_0_0/.5)]" /> : <span className="font-serif text-2xl text-[oklch(0.47_0.088_300)] drop-shadow-[0_1px_0_oklch(1_0_0/.7)] sm:text-3xl">{emoji}</span>}
             </div>

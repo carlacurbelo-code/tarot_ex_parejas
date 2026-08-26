@@ -222,3 +222,8 @@
 
 - [x] Corregir la lectura del parámetro `dodo_purchase` al volver desde checkout para activar la compra pagada en producción.
 - [x] Verificar que el retorno muestra la selección de tres cartas y no vuelve al inicio.
+
+## Ajuste visual — acercamiento al develar
+- [x] Agregar acercamiento sutil y breve al develarse la carta.
+- [x] Mantener sin animación la rotación de cartas invertidas y conservar su orientación final.
+- [x] Verificar el ajuste en revelado derecho e invertido sin afectar selección ni lectura.
