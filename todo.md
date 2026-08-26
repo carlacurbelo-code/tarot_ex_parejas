@@ -259,4 +259,5 @@
 - [x] Fijar Gemini Flash-Lite en lecturas gratuitas y pagas.
 - [x] Mantener sin cambios el flujo heredado PayPal/audio.
 - [x] Actualizar privacidad y términos sobre email y marketing opcional.
-- [ ] Ejecutar validación end-to-end del funnel completo con una transacción real de Dodo Test Mode.
+- [x] Validar end-to-end con pago real de Dodo Test Mode: tirada gratuita, email, pago aprobado, webhook, 3 créditos, consumo de 1 y saldo de 2.
+- [ ] Completar una segunda compra real de prueba sólo si se requiere validar también la recompra completa de checkout a webhook.
