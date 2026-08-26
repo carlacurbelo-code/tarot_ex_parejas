@@ -227,3 +227,8 @@
 - [x] Agregar acercamiento sutil y breve al develarse la carta.
 - [x] Mantener sin animación la rotación de cartas invertidas y conservar su orientación final.
 - [x] Verificar el ajuste en revelado derecho e invertido sin afectar selección ni lectura.
+
+## Auditoría solicitada — disponibilidad de publicación
+- [x] Verificar estado del último checkpoint, despliegue y opción de publicación del proyecto.
+- [x] Validar compilación, servicios y dominio publicado sin modificar funcionalidades.
+- [x] Informar por qué la opción de publicación no aparece y qué acción concreta corresponde.
