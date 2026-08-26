@@ -234,14 +234,14 @@
 - [x] Informar por qué la opción de publicación no aparece y qué acción concreta corresponde.
 
 ## Nuevo modelo de monetización — email, créditos y pack Dodo
-- [ ] Auditar el funnel actual, persistencia, Dodo, modelo LLM y textos legales.
-- [ ] Diseñar y versionar tablas para identidad por email, consentimiento y créditos persistentes.
-- [ ] Implementar tirada gratuita de 3 cartas con email obligatorio para desbloquear interpretación y límite por email.
-- [ ] Implementar pack Dodo de 3 créditos por USD 6,99, webhook idempotente y recompra.
-- [ ] Usar Gemini Flash-Lite explícitamente en interpretaciones gratuitas y pagas.
-- [ ] Mantener intacto el flujo heredado PayPal/audio y aislarlo del nuevo modelo.
-- [ ] Actualizar privacidad/términos para email obligatorio y consentimiento de marketing opcional.
-- [ ] Ejecutar pruebas unitarias, TypeScript, build y prueba end-to-end de tirada, pago, créditos, consumo y recompra.
+- [x] Auditar el funnel actual, persistencia, Dodo, modelo LLM y textos legales.
+- [x] Diseñar y versionar tablas para identidad por email, consentimiento y créditos persistentes.
+- [x] Implementar tirada gratuita de 3 cartas con email obligatorio para desbloquear interpretación y límite por email.
+- [x] Implementar pack Dodo de 3 créditos por USD 6,99, webhook idempotente y recompra.
+- [x] Usar Gemini Flash-Lite explícitamente en interpretaciones gratuitas y pagas.
+- [x] Mantener intacto el flujo heredado PayPal/audio y aislarlo del nuevo modelo.
+- [x] Actualizar privacidad/términos para email obligatorio y consentimiento de marketing opcional.
+- [x] Ejecutar pruebas unitarias, TypeScript, build y QA real de tirada gratuita, pago Test Mode, créditos y consumo; recompra implementada y cubierta por pruebas.
 
 ## Separación segura Tarot/Konstel — Dodo Test Mode
 - [x] Auditar receptor Dodo, creación de checkout, brand_id persistido y secreto utilizado.
