@@ -261,3 +261,13 @@
 - [x] Actualizar privacidad y términos sobre email y marketing opcional.
 - [x] Validar end-to-end con pago real de Dodo Test Mode: tirada gratuita, email, pago aprobado, webhook, 3 créditos, consumo de 1 y saldo de 2.
 - [ ] Completar una segunda compra real de prueba sólo si se requiere validar también la recompra completa de checkout a webhook.
+
+## Imágenes existentes y dominio propio
+- [ ] Verificar visualmente que las ilustraciones ya disponibles estén integradas y visibles en las cartas.
+- [ ] Confirmar el dominio propio que se desea configurar y preparar sus pasos de vinculación sin retirar el subdominio actual.
+- [ ] Retomar la generación del mazo restante cuando el cupo/plan de imágenes esté disponible.
+
+## Ajuste visual — carta con ilustración a superficie completa
+- [x] Hacer que la ilustración ocupe toda la superficie de la carta, sin marco pastel ni contenido duplicado por encima.
+- [x] Conservar nombre, orientación invertida 180° y zoom de revelado sin cambiar otros flujos.
+- [x] Verificar selector y resultado en móvil/escritorio y ejecutar TypeScript, tests y build.

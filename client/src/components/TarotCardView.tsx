@@ -63,18 +63,24 @@ export function TarotCardView({
             <span className="font-serif text-2xl text-[oklch(0.52_0.09_301/.84)] drop-shadow-[0_1px_0_oklch(1_0_0/.7)]">✦</span>
           </div>
         ) : revealed ? (
-          <div className="tarot-card-reveal flex h-full w-full flex-col items-center justify-between p-2.5 sm:p-3">
-            <div className="flex flex-1 items-center justify-center">
-              {imageSrc ? <img src={imageSrc} alt="" className="h-full w-full rounded-[0.55rem] object-cover shadow-[inset_0_0_0_1px_oklch(1_0_0/.5)]" /> : <span className="font-serif text-2xl text-[oklch(0.47_0.088_300)] drop-shadow-[0_1px_0_oklch(1_0_0/.7)] sm:text-3xl">{emoji}</span>}
+          imageSrc ? (
+            <div className="tarot-card-reveal h-full w-full">
+              <img src={imageSrc} alt={name ?? "Ilustración de tarot"} className="block h-full w-full object-cover" />
             </div>
-            <div className="text-center">
-              <p className="font-serif font-medium leading-tight text-[oklch(0.38_0.065_300)]">{name}</p>
+          ) : (
+            <div className="tarot-card-reveal flex h-full w-full flex-col items-center justify-between p-2.5 sm:p-3">
+              <div className="flex flex-1 items-center justify-center">
+                <span className="font-serif text-2xl text-[oklch(0.47_0.088_300)] drop-shadow-[0_1px_0_oklch(1_0_0/.7)] sm:text-3xl">{emoji}</span>
+              </div>
+              <div className="text-center">
+                <p className="font-serif font-medium leading-tight text-[oklch(0.38_0.065_300)]">{name}</p>
+              </div>
             </div>
-          </div>
+          )
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center p-3">
-            {imageSrc ? <img src={imageSrc} alt="" className="h-full w-full rounded-[0.55rem] object-cover shadow-[inset_0_0_0_1px_oklch(1_0_0/.5)]" /> : <span className="text-2xl text-[oklch(0.47_0.088_300)]/80">{emoji}</span>}
-            <p className="mt-2 font-serif text-center leading-tight text-[oklch(0.38_0.065_300)]">{name}</p>
+            {imageSrc ? <img src={imageSrc} alt={name ?? "Ilustración de tarot"} className="h-full w-full rounded-[0.55rem] object-cover shadow-[inset_0_0_0_1px_oklch(1_0_0/.5)]" /> : <span className="text-2xl text-[oklch(0.47_0.088_300)]/80">{emoji}</span>}
+            {!imageSrc && <p className="mt-2 font-serif text-center leading-tight text-[oklch(0.38_0.065_300)]">{name}</p>}
           </div>
         )}
       </div>
