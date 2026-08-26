@@ -1,0 +1,1 @@
+ALTER TABLE `dodoDeepReadingPurchases` ADD `dodoBrandId` varchar(100);

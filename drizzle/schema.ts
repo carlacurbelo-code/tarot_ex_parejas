@@ -70,6 +70,8 @@ export const dodoDeepReadingPurchases = mysqlTable("dodoDeepReadingPurchases", {
   action: mysqlEnum("action", ["deepen", "new_question"]).notNull(),
   status: mysqlEnum("status", ["checkout_created", "paid", "generating", "consumed"]).default("checkout_created").notNull(),
   dodoProductId: varchar("dodoProductId", { length: 100 }).notNull(),
+  /** Marca Dodo del producto asociado al checkout; null sólo en compras heredadas. */
+  dodoBrandId: varchar("dodoBrandId", { length: 100 }),
   checkoutSessionId: varchar("checkoutSessionId", { length: 120 }).unique(),
   dodoPaymentId: varchar("dodoPaymentId", { length: 120 }).unique(),
   generationAttempts: int("generationAttempts").default(0).notNull(),

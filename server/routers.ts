@@ -424,6 +424,7 @@ Pedido #${order.id}. Ingresá al panel admin para subir el audio.`,
             context: input.context,
             action: input.action,
             dodoProductId: product.productId,
+            dodoBrandId: product.brandId,
           });
 
           const checkout = await createDodoDeepReadingCheckout({

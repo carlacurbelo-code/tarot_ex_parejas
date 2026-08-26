@@ -10,5 +10,6 @@ export const ENV = {
   dodoPaymentsApiKey: process.env.DODO_PAYMENTS_API_KEY ?? "",
   dodoPaymentsWebhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY ?? "",
   dodoDeepReadingProductId: process.env.DODO_DEEP_READING_PRODUCT_ID ?? "",
+  dodoTarotBrandId: process.env.DODO_TAROT_BRAND_ID ?? "",
   dodoPaymentsEnvironment: process.env.DODO_PAYMENTS_ENVIRONMENT === "live_mode" ? "live_mode" as const : "test_mode" as const,
 };

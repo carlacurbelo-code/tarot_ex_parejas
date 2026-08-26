@@ -35,6 +35,7 @@ export async function getDodoDeepReadingProduct() {
 
   return {
     productId: product.product_id,
+    brandId: product.brand_id,
     amountMinor: product.price.price,
     currency: product.price.currency,
   };

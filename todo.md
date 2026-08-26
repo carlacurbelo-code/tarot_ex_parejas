@@ -232,3 +232,21 @@
 - [x] Verificar estado del último checkpoint, despliegue y opción de publicación del proyecto.
 - [x] Validar compilación, servicios y dominio publicado sin modificar funcionalidades.
 - [x] Informar por qué la opción de publicación no aparece y qué acción concreta corresponde.
+
+## Nuevo modelo de monetización — email, créditos y pack Dodo
+- [ ] Auditar el funnel actual, persistencia, Dodo, modelo LLM y textos legales.
+- [ ] Diseñar y versionar tablas para identidad por email, consentimiento y créditos persistentes.
+- [ ] Implementar tirada gratuita de 3 cartas con email obligatorio para desbloquear interpretación y límite por email.
+- [ ] Implementar pack Dodo de 3 créditos por USD 6,99, webhook idempotente y recompra.
+- [ ] Usar Gemini Flash-Lite explícitamente en interpretaciones gratuitas y pagas.
+- [ ] Mantener intacto el flujo heredado PayPal/audio y aislarlo del nuevo modelo.
+- [ ] Actualizar privacidad/términos para email obligatorio y consentimiento de marketing opcional.
+- [ ] Ejecutar pruebas unitarias, TypeScript, build y prueba end-to-end de tirada, pago, créditos, consumo y recompra.
+
+## Separación segura Tarot/Konstel — Dodo Test Mode
+- [x] Auditar receptor Dodo, creación de checkout, brand_id persistido y secreto utilizado.
+- [x] Implementar filtro fail-closed por brand_id de Tarot antes de cualquier efecto comercial.
+- [x] Mantener HTTP 200 e ignorar eventos con marca ausente o Konstel, preservando firma e idempotencia.
+- [x] Agregar pruebas de Tarot válido, Konstel rechazado, marca ausente e idempotencia.
+- [x] Auditar productos Tarot asignados a Tarot de Medianoche en Dodo Test Mode y documentar resultado.
+- [x] Ejecutar TypeScript y pruebas, sin tocar Live ni crear cobros/checkouts.
