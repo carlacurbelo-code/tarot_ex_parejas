@@ -1,6 +1,17 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertOrder, InsertUser, Order, orders, settings, users } from "../drizzle/schema";
+import {
+  DodoDeepReadingPurchase,
+  InsertDodoDeepReadingPurchase,
+  InsertOrder,
+  InsertUser,
+  Order,
+  dodoDeepReadingPurchases,
+  dodoWebhookEvents,
+  orders,
+  settings,
+  users,
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -163,6 +174,108 @@ export async function listAllOrders(): Promise<Order[]> {
   const db = await getDb();
   if (!db) return [];
   return await db.select().from(orders).orderBy(desc(orders.createdAt));
+}
+
+/* ============== DODO — TIRADA IA DE USO ÚNICO ============== */
+
+function affectedRows(result: unknown): number {
+  const value = result as { affectedRows?: number; 0?: { affectedRows?: number } };
+  return value?.affectedRows ?? value?.[0]?.affectedRows ?? 0;
+}
+
+export async function createDodoDeepReadingPurchase(data: InsertDodoDeepReadingPurchase): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  await db.insert(dodoDeepReadingPurchases).values(data);
+}
+
+export async function getDodoDeepReadingPurchase(purchaseToken: string): Promise<DodoDeepReadingPurchase | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(dodoDeepReadingPurchases)
+    .where(eq(dodoDeepReadingPurchases.purchaseToken, purchaseToken)).limit(1);
+  return rows[0];
+}
+
+export async function setDodoCheckoutSession(purchaseToken: string, checkoutSessionId: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  await db.update(dodoDeepReadingPurchases)
+    .set({ checkoutSessionId })
+    .where(eq(dodoDeepReadingPurchases.purchaseToken, purchaseToken));
+}
+
+export async function recordDodoWebhookEvent(event: {
+  webhookEventId: string;
+  eventType: string;
+  dodoPaymentId?: string | null;
+  purchaseToken?: string | null;
+}): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  const existing = await db.select({ id: dodoWebhookEvents.id }).from(dodoWebhookEvents)
+    .where(eq(dodoWebhookEvents.webhookEventId, event.webhookEventId)).limit(1);
+  if (existing[0]) return false;
+
+  try {
+    await db.insert(dodoWebhookEvents).values(event);
+    return true;
+  } catch (error) {
+    const raced = await db.select({ id: dodoWebhookEvents.id }).from(dodoWebhookEvents)
+      .where(eq(dodoWebhookEvents.webhookEventId, event.webhookEventId)).limit(1);
+    if (raced[0]) return false;
+    throw error;
+  }
+}
+
+export async function markDodoPurchasePaid(params: { purchaseToken: string; paymentId: string }): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  const result = await db.update(dodoDeepReadingPurchases)
+    .set({ status: "paid", dodoPaymentId: params.paymentId, paidAt: new Date(), lastGenerationError: null })
+    .where(and(
+      eq(dodoDeepReadingPurchases.purchaseToken, params.purchaseToken),
+      eq(dodoDeepReadingPurchases.status, "checkout_created"),
+    ));
+  return affectedRows(result) > 0;
+}
+
+export async function claimDodoPurchaseForGeneration(purchaseToken: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  const result = await db.update(dodoDeepReadingPurchases)
+    .set({
+      status: "generating",
+      generationAttempts: sql`${dodoDeepReadingPurchases.generationAttempts} + 1`,
+      lastGenerationError: null,
+    })
+    .where(and(
+      eq(dodoDeepReadingPurchases.purchaseToken, purchaseToken),
+      eq(dodoDeepReadingPurchases.status, "paid"),
+    ));
+  return affectedRows(result) > 0;
+}
+
+export async function releaseDodoPurchaseAfterGenerationFailure(purchaseToken: string, message: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(dodoDeepReadingPurchases)
+    .set({ status: "paid", lastGenerationError: message })
+    .where(and(
+      eq(dodoDeepReadingPurchases.purchaseToken, purchaseToken),
+      eq(dodoDeepReadingPurchases.status, "generating"),
+    ));
+}
+
+export async function consumeDodoPurchase(purchaseToken: string): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  await db.update(dodoDeepReadingPurchases)
+    .set({ status: "consumed", consumedAt: new Date(), lastGenerationError: null })
+    .where(and(
+      eq(dodoDeepReadingPurchases.purchaseToken, purchaseToken),
+      eq(dodoDeepReadingPurchases.status, "generating"),
+    ));
 }
 
 /* ============== SETTINGS ============== */

@@ -58,6 +58,45 @@ export type Order = typeof orders.$inferSelect;
 export type InsertOrder = typeof orders.$inferInsert;
 
 /**
+ * Compra puntual y derecho de una única lectura IA profunda mediante Dodo Payments.
+ * Esta tabla está deliberadamente separada de `orders`, que conserva el producto
+ * heredado PayPal + audio humano.
+ */
+export const dodoDeepReadingPurchases = mysqlTable("dodoDeepReadingPurchases", {
+  id: int("id").autoincrement().primaryKey(),
+  purchaseToken: varchar("purchaseToken", { length: 64 }).notNull().unique(),
+  question: text("question").notNull(),
+  context: mysqlEnum("context", ["love", "money_work"]).notNull(),
+  action: mysqlEnum("action", ["deepen", "new_question"]).notNull(),
+  status: mysqlEnum("status", ["checkout_created", "paid", "generating", "consumed"]).default("checkout_created").notNull(),
+  dodoProductId: varchar("dodoProductId", { length: 100 }).notNull(),
+  checkoutSessionId: varchar("checkoutSessionId", { length: 120 }).unique(),
+  dodoPaymentId: varchar("dodoPaymentId", { length: 120 }).unique(),
+  generationAttempts: int("generationAttempts").default(0).notNull(),
+  lastGenerationError: text("lastGenerationError"),
+  paidAt: timestamp("paidAt"),
+  consumedAt: timestamp("consumedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DodoDeepReadingPurchase = typeof dodoDeepReadingPurchases.$inferSelect;
+export type InsertDodoDeepReadingPurchase = typeof dodoDeepReadingPurchases.$inferInsert;
+
+/**
+ * Registro de eventos de Dodo ya recibidos para garantizar idempotencia frente a
+ * reintentos de webhook y entregas duplicadas.
+ */
+export const dodoWebhookEvents = mysqlTable("dodoWebhookEvents", {
+  id: int("id").autoincrement().primaryKey(),
+  webhookEventId: varchar("webhookEventId", { length: 160 }).notNull().unique(),
+  eventType: varchar("eventType", { length: 120 }).notNull(),
+  dodoPaymentId: varchar("dodoPaymentId", { length: 120 }),
+  purchaseToken: varchar("purchaseToken", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+/**
  * Configuraciones globales editables por la admin (precio, etc.)
  * Tabla key-value simple.
  */

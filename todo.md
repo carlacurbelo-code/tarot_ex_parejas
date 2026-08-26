@@ -186,4 +186,36 @@
 - [x] Retirar la transición de rotación de las cartas invertidas sin quitar su orientación visual de 180°.
 - [x] Generar el lote piloto: El Sol, La Torre, Dos de Copas, Tres de Espadas y Reina de Oros.
 - [x] Verificar que las cinco ilustraciones mantienen proporción, títulos en español, símbolos esenciales y coherencia visual.
-- [ ] Presentar el lote piloto para aprobación antes de producir las 78 cartas e integrarlas en la aplicación.
+- [x] Presentar el lote piloto para aprobación antes de producir las 78 cartas e integrarlas en la aplicación.
+
+## Mazo completo — ilustraciones aprobadas de Tarot de Medianoche
+- [x] Preparar el manifiesto visual de los 78 identificadores, títulos y símbolos esenciales del Rider-Waite-Smith en español.
+- [ ] Generar y guardar las 78 ilustraciones con el sistema pastel editorial aprobado, sin crear duplicados para reversas.
+- [ ] Verificar disponibilidad, proporción vertical y nomenclatura de los 78 activos.
+- [ ] Mapear cada identificador del catálogo a su imagen persistente e integrarlo únicamente en TarotCardView/Home.
+- [ ] Verificar en navegador las ilustraciones de una y tres cartas, en posición derecha e invertida, en escritorio y móvil.
+- [ ] Ejecutar TypeScript, Vitest y build; documentar e identificar el lote completo antes de publicar.
+
+## Auditoría final de monetización — sin implementación
+- [x] Inventariar el pago, precio, pedido, confirmación, token, audio y administración existentes sin modificar código.
+- [x] Trazar por separado los flujos de «Profundizar esta lectura» y «Hacer otra pregunta» frente a un cobro confirmado.
+- [x] Determinar si hoy existe el recorrido automático pago → tres cartas → Gemini → resultado e identificar su punto exacto de corte si no existe.
+- [x] Definir la modificación mínima, posibles servicios externos, complejidad y riesgos sin tomar decisiones ni implementar.
+- [ ] Entregar el reporte de auditoría y detenerse.
+
+## Monetización de lectura IA profunda — Dodo Payments
+- [ ] Confirmar la integración oficial de checkout/webhook de Dodo y documentar sus variables sin exponer secretos.
+- [ ] Crear un modelo separado de compra y derecho de una tirada IA, sin alterar pedidos, PayPal ni audio heredados.
+- [ ] Implementar checkout de Dodo, webhook con verificación de firma e idempotencia por evento/pago.
+- [ ] Exigir autorización de compra de un único uso antes de ejecutar la lectura profunda de tres cartas y conservarla ante un fallo temporal de Gemini.
+- [ ] Integrar el paywall mobile-first y conservar pregunta, contexto y tipo de acción a través de checkout y retorno.
+- [ ] Mantener separados el flujo PayPal/audio y el nuevo producto Dodo IA; añadir pruebas de regresión y de seguridad de compra.
+- [ ] Ejecutar QA técnico/sandbox disponible, documentar la configuración pendiente de Dodo y entregar el reporte final.
+
+- [ ] Continuar la generación del diseño visual de las cartas pendientes en lotes consistentes mientras se cargan las credenciales Dodo.
+- [ ] Revisar cada lote generado contra el sistema visual aprobado antes de incorporarlo al catálogo.
+- [ ] Mantener separadas la producción de imágenes y la activación del checkout hasta completar las credenciales y validaciones.
+
+- [ ] Investigar por qué el pago Dodo aprobado no actualiza la compra ni registra `payment.succeeded`.
+- [ ] Comparar la entrega real del webhook con la ruta, firma, entorno y asociación por metadata.
+- [ ] Corregir únicamente el punto de recepción/asociación Dodo y validar desbloqueo de una lectura.

@@ -17,13 +17,16 @@ import {
 } from "@shared/readingContext";
 import type { CardOrientation, TarotCard, TarotSelection } from "@shared/tarot";
 import { ArrowLeft, ArrowRight, BriefcaseBusiness, Heart, Loader2, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useLocation } from "wouter";
 
-type Step = "context" | "intro" | "single-cards" | "free-result" | "new-question" | "deep-cards" | "deep-result";
+type Step = "context" | "intro" | "single-cards" | "free-result" | "new-question" | "paywall" | "checkout-status" | "deep-cards" | "deep-result";
 type ContextSelectionMode = "initial" | "new-question";
+type DeepPurchaseAction = "deepen" | "new_question";
 
 export default function Home() {
+  const [location] = useLocation();
   const [step, setStep] = useState<Step>("context");
   const [readingContext, setReadingContext] = useState<ReadingContext | null>(null);
   const [contextSelectionMode, setContextSelectionMode] = useState<ContextSelectionMode>("initial");
@@ -36,9 +39,42 @@ export default function Home() {
   const [deepCards, setDeepCards] = useState<TarotSelection[]>([]);
   const [freeReading, setFreeReading] = useState("");
   const [deepReading, setDeepReading] = useState("");
+  const [deepPurchaseToken, setDeepPurchaseToken] = useState("");
+  const [pendingPurchaseAction, setPendingPurchaseAction] = useState<DeepPurchaseAction>("deepen");
+  const [deepReadingCanRetry, setDeepReadingCanRetry] = useState(false);
   const [restrictionMessage, setRestrictionMessage] = useState("");
   const submitSingleReading = trpc.tarot.submitSingleCardReading.useMutation();
-  const submitDeepReadingMutation = trpc.tarot.submitReading.useMutation();
+  const submitDeepReadingMutation = trpc.dodo.submitPaidDeepReading.useMutation();
+  const productQuery = trpc.dodo.getDeepReadingProduct.useQuery();
+  const createCheckout = trpc.dodo.createDeepReadingCheckout.useMutation();
+  const purchaseFromReturn = new URLSearchParams(location.split("?")[1] ?? "").get("dodo_purchase") ?? "";
+  const purchaseQuery = trpc.dodo.getDeepReadingPurchase.useQuery(
+    { purchaseToken: purchaseFromReturn || "pending-purchase-token" },
+    { enabled: Boolean(purchaseFromReturn), refetchInterval: query => query.state.data?.status === "checkout_created" ? 2000 : false },
+  );
+
+  useEffect(() => {
+    const purchase = purchaseQuery.data;
+    if (!purchase) return;
+
+    setReadingContext(purchase.context);
+    setDeepQuestion(purchase.question);
+    setDeepPurchaseToken(purchase.purchaseToken);
+    setPendingPurchaseAction(purchase.action);
+
+    if (purchase.status === "paid") {
+      setDeepCards([]);
+      setDeepReading("");
+      setDeepReadingCanRetry(false);
+      setDeepDeck(createIndependentReadingDeck());
+      setStep("deep-cards");
+      return;
+    }
+
+    if (purchase.status === "checkout_created" || purchase.status === "generating" || purchase.status === "consumed") {
+      setStep("checkout-status");
+    }
+  }, [purchaseQuery.data]);
 
   const selectReadingContext = (context: ReadingContext) => {
     setReadingContext(context);
@@ -86,7 +122,7 @@ export default function Home() {
     }
   };
 
-  const beginDeepDraw = (question: string) => {
+  const prepareDeepPurchase = (question: string, action: DeepPurchaseAction) => {
     const resolved = question.trim();
     if (!readingContext || resolved.length < 10) return;
     if (isRestrictedQuestion(resolved)) {
@@ -95,14 +131,12 @@ export default function Home() {
     }
     setRestrictionMessage("");
     setDeepQuestion(resolved);
-    setDeepCards([]);
-    setDeepReading("");
-    setDeepDeck(createIndependentReadingDeck());
-    setStep("deep-cards");
+    setPendingPurchaseAction(action);
+    setStep("paywall");
   };
 
   const deepenOriginalQuestion = () => {
-    beginDeepDraw(resolveDeepQuestion({ originalQuestion, newQuestion, useOriginalQuestion: true }));
+    prepareDeepPurchase(resolveDeepQuestion({ originalQuestion, newQuestion, useOriginalQuestion: true }), "deepen");
   };
 
   const startAnotherQuestion = () => {
@@ -113,7 +147,22 @@ export default function Home() {
   };
 
   const submitNewQuestion = () => {
-    beginDeepDraw(resolveDeepQuestion({ originalQuestion, newQuestion, useOriginalQuestion: false }));
+    prepareDeepPurchase(resolveDeepQuestion({ originalQuestion, newQuestion, useOriginalQuestion: false }), "new_question");
+  };
+
+  const beginDodoCheckout = async () => {
+    if (!readingContext || deepQuestion.length < 10) return;
+    try {
+      const checkout = await createCheckout.mutateAsync({
+        question: deepQuestion,
+        context: readingContext,
+        action: pendingPurchaseAction,
+        origin: window.location.origin,
+      });
+      window.location.assign(checkout.checkoutUrl);
+    } catch (error: any) {
+      toast.error(error?.message ?? "No pudimos iniciar el checkout. Probá nuevamente.");
+    }
   };
 
   const toggleDeepCard = (card: TarotCard) => {
@@ -121,20 +170,21 @@ export default function Home() {
   };
 
   const handleDeepReading = async () => {
-    if (!readingContext || deepCards.length !== 3 || deepQuestion.length < 10) return;
+    if (!deepPurchaseToken || deepCards.length !== 3) return;
     setStep("deep-result");
     setDeepReading("");
     try {
       const result = await submitDeepReadingMutation.mutateAsync({
-        situation: deepQuestion,
-        context: readingContext,
+        purchaseToken: deepPurchaseToken,
         cards: deepCards.map(({ id, orientation }) => ({ id, orientation })),
       });
       setDeepReading(result.reading);
+      setDeepReadingCanRetry(false);
     } catch (error) {
       console.error(error);
-      setDeepReading("No pude completar la lectura en este momento. Volvé a intentarlo en unos segundos.");
-      toast.error("No pudimos generar tu lectura. Probá nuevamente.");
+      setDeepReading("Tu pago sigue válido. No pude completar la lectura todavía; podés reintentarlo sin volver a pagar.");
+      setDeepReadingCanRetry(true);
+      toast.error("No pudimos generar tu lectura. Tu compra no fue consumida.");
     }
   };
 
@@ -204,6 +254,22 @@ export default function Home() {
             onContinue={submitNewQuestion}
           />
         )}
+        {step === "paywall" && (
+          <DeepReadingPaywall
+            product={productQuery.data}
+            loading={productQuery.isLoading || createCheckout.isPending}
+            onBack={() => setStep(pendingPurchaseAction === "new_question" ? "new-question" : "free-result")}
+            onCheckout={beginDodoCheckout}
+          />
+        )}
+        {step === "checkout-status" && (
+          <CheckoutStatusSection
+            purchase={purchaseQuery.data}
+            isLoading={purchaseQuery.isLoading || purchaseQuery.isFetching}
+            onRetry={() => setStep("paywall")}
+            onBack={() => setStep("free-result")}
+          />
+        )}
         {step === "deep-cards" && (
           <CardSelectionSection
             deck={deepDeck}
@@ -224,6 +290,11 @@ export default function Home() {
             eyebrow="Tu lectura profunda"
             title="Lo que dicen tus cartas"
             onBack={() => setStep("deep-cards")}
+            actions={deepReadingCanRetry ? (
+              <Button size="lg" className="tarot-primary-action mt-6 h-14 w-full text-base font-semibold" onClick={handleDeepReading}>
+                Reintentar mi lectura <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            ) : undefined}
           />
         )}
       </main>
@@ -441,8 +512,73 @@ function NewQuestionSection({
         </div>
         {restrictionMessage && <p role="alert" className="tarot-surface-elevated mt-5 px-4 py-3 text-sm leading-relaxed text-destructive">{restrictionMessage}</p>}
         <Button onClick={onContinue} disabled={!canContinue} size="lg" className="tarot-primary-action mt-8 h-14 w-full text-base font-semibold">
-          Elegir tres cartas <ArrowRight className="ml-2 h-4 w-4" />
+          Continuar al pago <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
+      </div>
+    </section>
+  );
+}
+
+function formatDodoPrice(amountMinor: number, currency: string) {
+  const fractionDigits = new Intl.NumberFormat("es-UY", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
+  return new Intl.NumberFormat("es-UY", { style: "currency", currency }).format(amountMinor / (10 ** fractionDigits));
+}
+
+function DeepReadingPaywall({
+  product,
+  loading,
+  onBack,
+  onCheckout,
+}: {
+  product: { configured: boolean; productId: string | null; amountMinor: number | null; currency: string | null } | undefined;
+  loading: boolean;
+  onBack: () => void;
+  onCheckout: () => void;
+}) {
+  const configured = product?.configured && product.amountMinor !== null && product.currency;
+  return (
+    <section className="tarot-page max-w-2xl py-8 pb-16 fade-in">
+      <Button variant="ghost" onClick={onBack} className="mb-7 -ml-2 text-muted-foreground hover:bg-transparent hover:text-foreground">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Volver
+      </Button>
+      <div className="tarot-surface px-5 py-9 text-center sm:px-10 sm:py-12">
+        <p className="tarot-kicker">Lectura profunda</p>
+        <h1 className="mt-3 font-serif text-4xl leading-tight text-foreground sm:text-5xl">Tres cartas para tu pregunta</h1>
+        <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-muted-foreground">Incluye una tirada independiente de tres cartas y una interpretación personalizada.</p>
+        {configured ? (
+          <p className="mt-8 font-serif text-4xl text-foreground">{formatDodoPrice(product.amountMinor!, product.currency!)}</p>
+        ) : (
+          <p className="mt-8 text-sm text-muted-foreground">La compra está siendo configurada. Volvé a intentarlo en unos minutos.</p>
+        )}
+        <Button onClick={onCheckout} disabled={!configured || loading} size="lg" className="tarot-primary-action mt-8 h-14 w-full text-base font-semibold">
+          {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Preparando checkout</> : "Continuar al pago"}
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function CheckoutStatusSection({
+  purchase,
+  isLoading,
+  onRetry,
+  onBack,
+}: {
+  purchase: { status: "checkout_created" | "paid" | "generating" | "consumed"; lastGenerationError: string | null } | undefined;
+  isLoading: boolean;
+  onRetry: () => void;
+  onBack: () => void;
+}) {
+  const waiting = !purchase || purchase.status === "checkout_created" || purchase.status === "generating";
+  return (
+    <section className="tarot-page max-w-xl py-12 sm:py-20 fade-in">
+      <div className="tarot-surface px-6 py-10 text-center sm:px-10">
+        {waiting && <Loader2 className="mx-auto h-5 w-5 animate-spin text-[var(--tarot-accent-hover)]" />}
+        <p className="tarot-kicker mt-4">Pago</p>
+        <h1 className="mt-3 font-serif text-3xl text-foreground">{waiting ? "Estamos verificando tu pago" : "Esta compra ya fue utilizada"}</h1>
+        <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{waiting ? "Cuando Dodo confirme el pago, vas a poder elegir tus tres cartas. No cierres esta pantalla." : "Cada compra habilita una única lectura profunda."}</p>
+        {!isLoading && purchase?.status === "checkout_created" && <Button variant="outline" className="tarot-secondary-action mt-7" onClick={onRetry}>Volver a intentar el pago</Button>}
+        <Button variant="ghost" className="mt-4 text-muted-foreground" onClick={onBack}>Volver a mi lectura gratuita</Button>
       </div>
     </section>
   );

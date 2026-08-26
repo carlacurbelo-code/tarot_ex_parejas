@@ -215,10 +215,12 @@ describe("Bloque 2 — independencia entre tiradas", () => {
     expect(afterDeselection.some(card => card.id === freeCard.id)).toBe(false);
   });
 
-  it("el envío profundo usa exclusivamente deepQuestion y tres cartas nuevas, sin contexto de la lectura gratuita", () => {
+  it("el envío profundo pago preserva deepQuestion al crear checkout y usa tres cartas nuevas sin usar la lectura gratuita", () => {
     const home = fs.readFileSync(path.resolve(import.meta.dirname, "../client/src/pages/Home.tsx"), "utf8");
     const handler = home.slice(home.indexOf("const handleDeepReading"), home.indexOf("return ("));
-    expect(handler).toContain("situation: deepQuestion");
+    const checkout = home.slice(home.indexOf("const beginDodoCheckout"), home.indexOf("const toggleDeepCard"));
+    expect(checkout).toContain("question: deepQuestion");
+    expect(handler).toContain("purchaseToken: deepPurchaseToken");
     expect(handler).toContain("cards: deepCards.map");
     expect(handler).not.toContain("freeReading");
   });

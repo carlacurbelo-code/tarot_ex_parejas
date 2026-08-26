@@ -12,23 +12,35 @@ import {
   RESTRICTED_QUESTION_MESSAGE,
   type ReadingContext,
 } from "@shared/readingContext";
+import { hasThreeDistinctCards } from "@shared/deepReadingPurchase";
 import { TRPCError } from "@trpc/server";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import {
   DEFAULT_PREMIUM_PRICE,
   SETTING_KEYS,
+  claimDodoPurchaseForGeneration,
+  consumeDodoPurchase,
+  createDodoDeepReadingPurchase,
   createOrder,
+  getDodoDeepReadingPurchase,
   getOrderByToken,
   getSettingValue,
   listAllOrders,
   markOrderCompleted,
   markOrderPaid,
+  releaseDodoPurchaseAfterGenerationFailure,
+  setDodoCheckoutSession,
   setOrderAudio,
   setSettingValue,
   updateOrderPremiumQuestion,
   updateOrderReading,
 } from "./db";
+import {
+  DodoConfigurationError,
+  createDodoDeepReadingCheckout,
+  getDodoDeepReadingProduct,
+} from "./dodo";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { invokeLLM } from "./_core/llm";
 import { notifyOwner } from "./_core/notification";
@@ -252,7 +264,7 @@ export const appRouter = router({
         const cards = input.cards
           ? normalizeSelection(input.cards)
           : assignOrientations(normalizeSelection((input.cardIds ?? []).map(id => ({ id }))));
-        if (cards.length !== 3 || new Set(cards.map(card => card.id)).size !== 3) {
+        if (!hasThreeDistinctCards(cards)) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Cartas inválidas o repetidas" });
         }
 
@@ -374,6 +386,139 @@ Pedido #${order.id}. Ingresá al panel admin para subir el audio.`,
       .mutation(async ({ input }) => {
         await updateOrderPremiumQuestion(input.token, input.question);
         return { success: true };
+      }),
+  }),
+
+  dodo: router({
+    /** Precio y disponibilidad del producto puntual configurado exclusivamente en Dodo. */
+    getDeepReadingProduct: publicProcedure.query(async () => {
+      try {
+        const product = await getDodoDeepReadingProduct();
+        return { configured: true as const, ...product };
+      } catch (error) {
+        if (error instanceof DodoConfigurationError) {
+          return { configured: false as const, productId: null, amountMinor: null, currency: null };
+        }
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No pude cargar el producto de pago." });
+      }
+    }),
+
+    /** Crea una compra puntual y una Checkout Session alojada por Dodo. */
+    createDeepReadingCheckout: publicProcedure
+      .input(z.object({
+        question: z.string().min(10).max(500),
+        context: z.enum(["love", "money_work"]),
+        action: z.enum(["deepen", "new_question"]),
+        origin: z.string().url(),
+      }))
+      .mutation(async ({ input }) => {
+        rejectRestrictedQuestion(input.question);
+        const purchaseToken = nanoid(32);
+        const origin = new URL(input.origin).origin;
+
+        try {
+          const product = await getDodoDeepReadingProduct();
+          await createDodoDeepReadingPurchase({
+            purchaseToken,
+            question: input.question.trim(),
+            context: input.context,
+            action: input.action,
+            dodoProductId: product.productId,
+          });
+
+          const checkout = await createDodoDeepReadingCheckout({
+            purchaseToken,
+            returnUrl: `${origin}/?dodo_purchase=${encodeURIComponent(purchaseToken)}`,
+            cancelUrl: `${origin}/?dodo_purchase=${encodeURIComponent(purchaseToken)}&checkout=cancelled`,
+          });
+          await setDodoCheckoutSession(purchaseToken, checkout.checkoutSessionId);
+
+          return { purchaseToken, checkoutUrl: checkout.checkoutUrl };
+        } catch (error) {
+          if (error instanceof DodoConfigurationError) {
+            throw new TRPCError({ code: "PRECONDITION_FAILED", message: "La compra todavía no está configurada." });
+          }
+          console.error("[Dodo] Error creando checkout:", error);
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No pude iniciar el checkout. Probá nuevamente." });
+        }
+      }),
+
+    /** Devuelve sólo el estado necesario para reanudar una compra en el mismo navegador. */
+    getDeepReadingPurchase: publicProcedure
+      .input(z.object({ purchaseToken: z.string().min(20).max(64) }))
+      .query(async ({ input }) => {
+        const purchase = await getDodoDeepReadingPurchase(input.purchaseToken);
+        if (!purchase) throw new TRPCError({ code: "NOT_FOUND", message: "No encontramos esta compra." });
+        return {
+          purchaseToken: purchase.purchaseToken,
+          question: purchase.question,
+          context: purchase.context,
+          action: purchase.action,
+          status: purchase.status,
+          lastGenerationError: purchase.lastGenerationError,
+        };
+      }),
+
+    /** Ejecuta exactamente la lectura profunda aprobada una vez que Dodo confirmó una compra no consumida. */
+    submitPaidDeepReading: publicProcedure
+      .input(z.object({
+        purchaseToken: z.string().min(20).max(64),
+        cards: z.array(z.object({
+          id: z.string(),
+          orientation: z.enum(["upright", "reversed"]),
+        })).length(3),
+      }))
+      .mutation(async ({ input }) => {
+        const purchase = await getDodoDeepReadingPurchase(input.purchaseToken);
+        if (!purchase) throw new TRPCError({ code: "NOT_FOUND", message: "No encontramos esta compra." });
+        if (purchase.status !== "paid") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Esta compra todavía no habilita una tirada." });
+        }
+
+        rejectRestrictedQuestion(purchase.question);
+        const cards = normalizeSelection(input.cards);
+        if (!hasThreeDistinctCards(cards)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Cartas inválidas o repetidas." });
+        }
+
+        const claimed = await claimDodoPurchaseForGeneration(purchase.purchaseToken);
+        if (!claimed) {
+          throw new TRPCError({ code: "CONFLICT", message: "Esta compra ya está siendo utilizada o fue consumida." });
+        }
+
+        try {
+          const response = await invokeLLM({
+            messages: [
+              { role: "system", content: purchase.context === "money_work" ? MONEY_WORK_SYSTEM_PROMPT : SYSTEM_PROMPT },
+              { role: "user", content: buildReadingUserMessage(purchase.question, cards, purchase.context as ReadingContext) },
+            ],
+          });
+          const reading = response.choices?.[0]?.message?.content;
+          if (typeof reading !== "string" || !reading.trim()) {
+            throw new Error("Gemini no devolvió una lectura.");
+          }
+          await consumeDodoPurchase(purchase.purchaseToken);
+          return {
+            reading: reading.trim(),
+            cards: cards.map(card => ({
+              id: card.id,
+              name: card.name,
+              emoji: card.emoji,
+              imageKey: card.imageKey,
+              orientation: card.orientation,
+            })),
+          };
+        } catch (error) {
+          console.error("[Dodo] Error generando lectura paga:", error);
+          await releaseDodoPurchaseAfterGenerationFailure(
+            purchase.purchaseToken,
+            "La lectura no pudo generarse todavía; podés reintentarla sin volver a pagar.",
+          );
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Tu pago sigue válido. No pude generar la lectura todavía; reintentá en unos segundos.",
+          });
+        }
       }),
   }),
 
