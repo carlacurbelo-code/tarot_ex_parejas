@@ -176,12 +176,12 @@ const TAROT_IMAGE_URLS: Record<string, string> = {
   ace_pentacles: "/manus-storage/tarot-ace-pentacles_9ef9d592.webp",
   ace_swords: "/manus-storage/tarot-ace-swords_ffeb7d84.webp",
   ace_wands: "/manus-storage/tarot-ace-wands_97dca7c0.webp",
-  two_cups: "/manus-storage/tarot-two-cups_480c3309.webp",
+  two_cups: "/manus-storage/tarot-piloto-dos-de-copas_9a434a0b.webp",
   two_pentacles: "/manus-storage/tarot-two-pentacles_7b0c1297.webp",
   two_swords: "/manus-storage/tarot-two-swords_2cd661c8.webp",
   two_wands: "/manus-storage/tarot-two-wands_ccd0bfa7.webp",
   three_cups: "/manus-storage/tarot-three-cups_a1a43254.webp",
-  three_swords: "/manus-storage/tarot-three-swords_8dc72d61.webp",
+  three_swords: "/manus-storage/tarot-piloto-tres-de-espadas_6050729e.webp",
   three_wands: "/manus-storage/tarot-three-wands_3101c312.webp",
   four_cups: "/manus-storage/tarot-four-cups_c78e3d6d.webp",
   four_pentacles: "/manus-storage/tarot-four-pentacles_c82cafa9.webp",
@@ -191,6 +191,9 @@ const TAROT_IMAGE_URLS: Record<string, string> = {
   five_pentacles: "/manus-storage/tarot-five-pentacles_d55807b0.webp",
   five_swords: "/manus-storage/tarot-five-swords_93425bbd.webp",
   five_wands: "/manus-storage/tarot-five-wands_c674b8e7.webp",
+  sun: "/manus-storage/tarot-piloto-el-sol_fcc992f2.webp",
+  tower: "/manus-storage/tarot-piloto-la-torre_3be624eb.webp",
+  queen_pentacles: "/manus-storage/tarot-piloto-reina-de-oros_975808ef.webp",
 };
 
 export function getTarotImageUrl(id: string): string | undefined {

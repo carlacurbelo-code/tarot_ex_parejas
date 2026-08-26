@@ -260,10 +260,10 @@
 - [x] Mantener sin cambios el flujo heredado PayPal/audio.
 - [x] Actualizar privacidad y términos sobre email y marketing opcional.
 - [x] Validar end-to-end con pago real de Dodo Test Mode: tirada gratuita, email, pago aprobado, webhook, 3 créditos, consumo de 1 y saldo de 2.
-- [ ] Completar una segunda compra real de prueba sólo si se requiere validar también la recompra completa de checkout a webhook.
+- [x] Completar una segunda compra real de prueba sólo si se requiere validar también la recompra completa de checkout a webhook: no requerida; recompra cubierta por pruebas automatizadas.
 
 ## Imágenes existentes y dominio propio
-- [ ] Verificar visualmente que las ilustraciones ya disponibles estén integradas y visibles en las cartas.
+- [x] Verificar visualmente que las ilustraciones ya disponibles estén integradas y visibles en las cartas.
 - [ ] Confirmar el dominio propio que se desea configurar y preparar sus pasos de vinculación sin retirar el subdominio actual.
 - [ ] Retomar la generación del mazo restante cuando el cupo/plan de imágenes esté disponible.
 
@@ -273,10 +273,10 @@
 - [x] Verificar selector y resultado en móvil/escritorio y ejecutar TypeScript, tests y build.
 
 ## Optimización de carga de ilustraciones
-- [ ] Medir peso, dimensiones y formato de los activos actuales.
-- [ ] Crear versiones optimizadas sin alterar la composición visual y subirlas al almacenamiento persistente.
-- [ ] Actualizar referencias, añadir carga eficiente y validar rendimiento/calidad.
-- [ ] Ejecutar TypeScript, tests y build; documentar y publicar el ajuste.
+- [x] Medir peso, dimensiones y formato de los activos actuales.
+- [x] Crear versiones optimizadas sin alterar la composición visual y subirlas al almacenamiento persistente.
+- [x] Actualizar referencias, añadir carga eficiente y validar rendimiento/calidad.
+- [x] Ejecutar TypeScript, tests y build; documentar y publicar el ajuste.
 
 ## Optimización de ilustraciones — rendimiento
 - [x] Convertir las 38 PNG existentes a WebP optimizado conservando proporción y contenido
