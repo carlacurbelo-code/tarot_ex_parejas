@@ -265,7 +265,7 @@
 ## Imágenes existentes y dominio propio
 - [x] Verificar visualmente que las ilustraciones ya disponibles estén integradas y visibles en las cartas.
 - [ ] Confirmar el dominio propio que se desea configurar y preparar sus pasos de vinculación sin retirar el subdominio actual.
-- [ ] Retomar la generación del mazo restante cuando el cupo/plan de imágenes esté disponible.
+- [ ] Retomar la generación del mazo restante (42 cartas pendientes de 78 totales, 36 ya generadas y mapeadas) cuando el cupo/plan de imágenes esté disponible.
 
 ## Ajuste visual — carta con ilustración a superficie completa
 - [x] Hacer que la ilustración ocupe toda la superficie de la carta, sin marco pastel ni contenido duplicado por encima.
@@ -284,3 +284,8 @@
 - [x] Añadir carga eficiente (`loading`/`decoding`) en `TarotCardView`
 - [x] Verificar visualmente cartas con ilustración y cartas placeholder en escritorio y móvil
 - [x] Ejecutar TypeScript, Vitest y build; documentar reducción de peso y publicar checkpoint
+
+## Corrección de conteo del mazo
+- [x] Auditar las 78 cartas del catálogo frente a los activos generados reales
+- [x] Corregir el conteo documentado de cartas generadas y pendientes sin modificar la aplicación
+- [x] Validar el conteo final y publicar la corrección documental
