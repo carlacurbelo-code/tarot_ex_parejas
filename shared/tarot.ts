@@ -155,3 +155,44 @@ export function orientationTransformClass(
 ): string {
   return revealed && orientation === "reversed" ? "rotate-180" : "";
 }
+
+/** URLs persistentes de las ilustraciones aprobadas/disponibles. Las cartas restantes conservan placeholder. */
+const TAROT_IMAGE_URLS: Record<string, string> = {
+  fool: "/manus-storage/tarot-fool_59dfd9f9.png",
+  magician: "/manus-storage/tarot-magician_e76bee9a.png",
+  high_priestess: "/manus-storage/tarot-high-priestess_0a7e679e.png",
+  empress: "/manus-storage/tarot-empress_770c0a4c.png",
+  emperor: "/manus-storage/tarot-emperor_2f420308.png",
+  hierophant: "/manus-storage/tarot-hierophant_9ae03164.png",
+  lovers: "/manus-storage/tarot-lovers_e5434a91.png",
+  chariot: "/manus-storage/tarot-chariot_a69ac42d.png",
+  strength: "/manus-storage/tarot-strength_7212f447.png",
+  hermit: "/manus-storage/tarot-hermit_6ed436bf.png",
+  wheel_of_fortune: "/manus-storage/tarot-wheel-of-fortune_01724a1d.png",
+  justice: "/manus-storage/tarot-justice_bfc4038f.png",
+  hanged_man: "/manus-storage/tarot-hanged-man_f0ba0aa4.png",
+  death: "/manus-storage/tarot-death_c21cc466.png",
+  ace_cups: "/manus-storage/tarot-ace-cups_26729558.png",
+  ace_pentacles: "/manus-storage/tarot-ace-pentacles_7f2c94da.png",
+  ace_swords: "/manus-storage/tarot-ace-swords_f06a0b0c.png",
+  ace_wands: "/manus-storage/tarot-ace-wands_a18f36f4.png",
+  two_cups: "/manus-storage/tarot-two-cups_2f68bce8.png",
+  two_pentacles: "/manus-storage/tarot-two-pentacles_dd0032cc.png",
+  two_swords: "/manus-storage/tarot-two-swords_b7b41653.png",
+  two_wands: "/manus-storage/tarot-two-wands_463cbad6.png",
+  three_cups: "/manus-storage/tarot-three-cups_4b6347cb.png",
+  three_swords: "/manus-storage/tarot-three-swords_f2b62a43.png",
+  three_wands: "/manus-storage/tarot-three-wands_95e7a699.png",
+  four_cups: "/manus-storage/tarot-four-cups_4305f244.png",
+  four_pentacles: "/manus-storage/tarot-four-pentacles_ee057294.png",
+  four_swords: "/manus-storage/tarot-four-swords_0270d4d8.png",
+  four_wands: "/manus-storage/tarot-four-wands_b860c571.png",
+  five_cups: "/manus-storage/tarot-five-cups_d9576136.png",
+  five_pentacles: "/manus-storage/tarot-five-pentacles_394bfaea.png",
+  five_swords: "/manus-storage/tarot-five-swords_7266bffa.png",
+  five_wands: "/manus-storage/tarot-five-wands_cb531f67.png",
+};
+
+export function getTarotImageUrl(id: string): string | undefined {
+  return TAROT_IMAGE_URLS[id];
+}

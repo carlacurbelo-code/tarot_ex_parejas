@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { getTarotImageUrl } from "@shared/tarot";
 import { CheckCircle2, ExternalLink, Heart, Loader2, Lock } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -61,6 +62,7 @@ export default function Reading() {
                 key={card.id}
                 name={card.name}
                 emoji={card.emoji}
+                imageSrc={getTarotImageUrl(card.id)}
                 revealed
                 orientation={card.orientation}
                 size="sm"

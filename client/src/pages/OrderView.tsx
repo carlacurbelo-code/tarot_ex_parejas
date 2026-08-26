@@ -2,6 +2,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { TarotCardView } from "@/components/TarotCardView";
 import { Card } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
+import { getTarotImageUrl } from "@shared/tarot";
 import { CheckCircle2, Clock, Loader2 } from "lucide-react";
 import { useParams } from "wouter";
 
@@ -55,6 +56,7 @@ export default function OrderView() {
                 key={card.id}
                 name={card.name}
                 emoji={card.emoji}
+                imageSrc={getTarotImageUrl(card.id)}
                 revealed
                 orientation={card.orientation}
                 size="sm"
