@@ -70,4 +70,15 @@ describe("acceso gratuito anónimo", () => {
     expect(home).toContain("readingToken: paidReadingToken");
     expect(home).toContain("disabled={selected.length !== 3 || loading}");
   });
+
+  it("mantiene la explicación de privacidad fuera del recorrido principal mediante un enlace discreto", () => {
+    const footer = readProjectFile("client/src/components/SiteFooter.tsx");
+    const app = readProjectFile("client/src/App.tsx");
+    const privacy = readProjectFile("client/src/pages/Privacy.tsx");
+    expect(footer).toContain('href="/privacidad"');
+    expect(footer).not.toContain("La primera lectura se limita mediante una cookie");
+    expect(app).toContain('path="/privacidad"');
+    expect(privacy).toContain("Lectura gratuita");
+    expect(privacy).toContain("Prevención de abuso");
+  });
 });

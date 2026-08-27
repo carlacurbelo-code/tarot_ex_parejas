@@ -4,6 +4,7 @@ import Admin from "@/pages/Admin";
 import Home from "@/pages/Home";
 import NotFound from "@/pages/NotFound";
 import OrderView from "@/pages/OrderView";
+import Privacy from "@/pages/Privacy";
 import Reading from "@/pages/Reading";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/lectura/:token" component={Reading} />
       <Route path="/mi-lectura/:token" component={OrderView} />
       <Route path="/admin" component={Admin} />
+      <Route path="/privacidad" component={Privacy} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>

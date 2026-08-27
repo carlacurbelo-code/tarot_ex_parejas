@@ -5,11 +5,8 @@ export function SiteFooter() {
         <p className="font-serif italic">
           Las lecturas son una herramienta de reflexión y acompañamiento. No reemplazan ayuda profesional.
         </p>
-        <p className="mx-auto mt-4 max-w-2xl text-xs leading-relaxed">
-          La primera lectura se limita mediante una cookie anónima de primera parte, sin crear una cuenta ni usar técnicas invasivas de identificación. Para prevenir automatización evidente, aplicamos además un límite temporal por conexión.
-        </p>
-        <p className="mx-auto mt-3 max-w-2xl text-xs leading-relaxed">
-          Solo pedimos tu email si comprás créditos, para asociarlos a la compra. El consentimiento para recibir novedades es opcional, separado del pago y podés retirarlo cuando quieras. No vendemos tu dirección ni la usamos para finalidades distintas a las informadas.
+        <p className="mt-4 text-xs">
+          <a href="/privacidad" className="underline decoration-muted-foreground/45 underline-offset-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Privacidad</a>
         </p>
         <p className="mt-3 text-xs tracking-wide">© {new Date().getFullYear()} · Tarot de Medianoche</p>
       </div>

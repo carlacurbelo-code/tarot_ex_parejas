@@ -303,3 +303,8 @@
 - [x] Conservar créditos pagos por email y habilitar su recuperación mínima sin cuentas ni contraseñas.
 - [x] Asegurar consumo solo al entregar lectura, idempotencia y reintentos ante fallo de Gemini.
 - [x] Actualizar copy, privacidad, tests y QA móvil; documentar límites, datos y configuración Dodo sin tocar su dashboard.
+
+## Ajuste puntual — enlace discreto de privacidad
+- [x] Retirar el bloque explicativo de cookie y rate limiting visible en el footer.
+- [x] Añadir un enlace discreto a una página de privacidad con la información completa.
+- [x] Verificar el enlace en móvil, ejecutar validaciones y publicar el ajuste.
