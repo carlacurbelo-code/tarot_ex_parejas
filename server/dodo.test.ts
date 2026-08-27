@@ -67,11 +67,12 @@ describe("contrato Dodo y regresiones del flujo heredado", () => {
     expect(webhookSource).toContain("containsExpectedProduct");
   });
 
-  it("mantiene el flujo heredado de una compra única aislado", () => {
+  it("mantiene el flujo heredado de una compra única aislado y usa créditos de la identidad anónima", () => {
     expect(routerSource).toContain("claimDodoPurchaseForGeneration");
     expect(routerSource).toContain("releaseDodoPurchaseAfterGenerationFailure");
     expect(routerSource).toContain("consumeDodoPurchase");
-    expect(routerSource).toContain("claimTarotCredit");
+    expect(routerSource).toContain("claimCurrentAnonymousCredit");
+    expect(routerSource).toContain("releaseCurrentAnonymousCredit");
   });
 
   it("mantiene el producto PayPal/audio separado del nuevo router Dodo", () => {
@@ -80,9 +81,13 @@ describe("contrato Dodo y regresiones del flujo heredado", () => {
     expect(routerSource).toContain("dodo: router");
   });
 
-  it("exige email para desbloquear y ofrece pack de tres créditos", () => {
-    expect(homeSource).toContain("email");
-    expect(homeSource).toContain("Desbloquear mi lectura");
+  it("entrega la lectura inicial sin email y solicita email sólo al comprar créditos", () => {
+    expect(homeSource).toContain("getFreeAccessStatus");
+    expect(homeSource).toContain("createFree.mutateAsync");
+    expect(homeSource).toContain("Ver mi lectura");
+    expect(homeSource).not.toContain("EmailGate");
+    expect(homeSource).not.toContain("Desbloquear mi lectura");
+    expect(homeSource).toContain("Tu email para guardar y recuperar tus créditos");
     expect(homeSource).toContain("Comprar pack de 3 lecturas");
     expect(homeSource).toContain("marketingConsent");
     expect(homeSource).not.toContain("deepPurchaseToken");

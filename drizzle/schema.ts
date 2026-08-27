@@ -112,17 +112,53 @@ export const tarotProfiles = mysqlTable("tarotProfiles", {
 export type TarotProfile = typeof tarotProfiles.$inferSelect;
 export type InsertTarotProfile = typeof tarotProfiles.$inferInsert;
 
-/** Lecturas del funnel por email: la lectura gratuita se desbloquea después del email. */
+/**
+ * Identificador anónimo de primera parte usado exclusivamente para limitar la
+ * lectura gratuita y para enlazar en este navegador los créditos comprados.
+ * Sólo se persiste el hash HMAC del valor de cookie, nunca el valor original.
+ */
+export const tarotAnonymousVisitors = mysqlTable("tarotAnonymousVisitors", {
+  id: int("id").autoincrement().primaryKey(),
+  visitorIdHash: varchar("visitorIdHash", { length: 64 }).notNull().unique(),
+  profileId: int("profileId"),
+  freeReadingReservationToken: varchar("freeReadingReservationToken", { length: 64 }),
+  freeReadingReservedAt: timestamp("freeReadingReservedAt"),
+  freeReadingClaimedAt: timestamp("freeReadingClaimedAt"),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TarotAnonymousVisitor = typeof tarotAnonymousVisitors.$inferSelect;
+export type InsertTarotAnonymousVisitor = typeof tarotAnonymousVisitors.$inferInsert;
+
+/**
+ * Ventanas efímeras de actividad por IP hash para frenar automatización clara.
+ * Cada fila expira y se elimina antes de evaluar una nueva lectura gratuita.
+ */
+export const tarotIpRateLimits = mysqlTable("tarotIpRateLimits", {
+  id: int("id").autoincrement().primaryKey(),
+  bucketKey: varchar("bucketKey", { length: 160 }).notNull().unique(),
+  ipHash: varchar("ipHash", { length: 64 }).notNull(),
+  requestCount: int("requestCount").default(0).notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type TarotIpRateLimit = typeof tarotIpRateLimits.$inferSelect;
+
+/** Lecturas del funnel público: las gratuitas se asocian a la identidad anónima y las pagas a un perfil de compra. */
 export const tarotReadings = mysqlTable("tarotReadings", {
   id: int("id").autoincrement().primaryKey(),
   readingToken: varchar("readingToken", { length: 80 }).notNull().unique(),
   profileId: int("profileId"),
+  anonymousVisitorId: int("anonymousVisitorId"),
   question: text("question").notNull(),
   context: mysqlEnum("context", ["love", "money_work"]).notNull(),
   selectedCards: text("selectedCards").notNull(),
   interpretation: text("interpretation"),
   kind: mysqlEnum("kind", ["free", "credit"]).notNull(),
-  status: mysqlEnum("status", ["pending_email", "ready", "consumed"]).default("pending_email").notNull(),
+  status: mysqlEnum("status", ["pending_email", "generating", "ready", "consumed"]).default("pending_email").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

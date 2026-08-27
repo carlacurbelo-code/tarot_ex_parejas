@@ -1,0 +1,1 @@
+ALTER TABLE `tarotAnonymousVisitors` ADD `expiresAt` timestamp NOT NULL;

@@ -267,6 +267,11 @@
 - [ ] Confirmar el dominio propio que se desea configurar y preparar sus pasos de vinculación sin retirar el subdominio actual.
 - [ ] Retomar la generación del mazo restante (42 cartas pendientes de 78 totales, 36 ya generadas y mapeadas) cuando el cupo/plan de imágenes esté disponible.
 
+## Dominio propio — tarotdemedianoche.com
+- [ ] Comprobar la resolución DNS y registrar los datos de vinculación requeridos.
+- [ ] Vincular tarotdemedianoche.com sin retirar el subdominio de Manus actual.
+- [ ] Verificar HTTPS y acceso por el dominio propio, incluido www si se configura.
+
 ## Ajuste visual — carta con ilustración a superficie completa
 - [x] Hacer que la ilustración ocupe toda la superficie de la carta, sin marco pastel ni contenido duplicado por encima.
 - [x] Conservar nombre, orientación invertida 180° y zoom de revelado sin cambiar otros flujos.
@@ -289,3 +294,12 @@
 - [x] Auditar las 78 cartas del catálogo frente a los activos generados reales
 - [x] Corregir el conteo documentado de cartas generadas y pendientes sin modificar la aplicación
 - [x] Validar el conteo final y publicar la corrección documental
+
+## Acceso gratuito sin email + control de abuso
+- [x] Auditar el flujo actual de email, créditos, Dodo, cookies y restricciones sin modificar PayPal/audio.
+- [x] Crear persistencia server-side de identidad anónima y derecho de una lectura gratuita de tres cartas.
+- [x] Aplicar rate limiting conservador por IP como segunda señal, con retención limitada y sin fingerprinting.
+- [x] Eliminar el email del desbloqueo gratuito y solicitarlo solo donde sea necesario para compras o recuperación de créditos.
+- [x] Conservar créditos pagos por email y habilitar su recuperación mínima sin cuentas ni contraseñas.
+- [x] Asegurar consumo solo al entregar lectura, idempotencia y reintentos ante fallo de Gemini.
+- [x] Actualizar copy, privacidad, tests y QA móvil; documentar límites, datos y configuración Dodo sin tocar su dashboard.

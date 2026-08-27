@@ -36,6 +36,34 @@
       "when": 1787770760095,
       "tag": "0004_high_rafael_vega",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1787797858670,
+      "tag": "0005_amusing_malice",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1787797985588,
+      "tag": "0006_sad_black_bird",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1787798073520,
+      "tag": "0007_quiet_pretty_boy",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1787798108175,
+      "tag": "0008_complex_vanisher",
+      "breakpoints": true
     }
   ]
 }

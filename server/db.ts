@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, lt, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   DodoDeepReadingPurchase,
@@ -9,6 +9,8 @@ import {
   dodoDeepReadingPurchases,
   dodoWebhookEvents,
   tarotCreditPacks,
+  tarotAnonymousVisitors,
+  tarotIpRateLimits,
   tarotProfiles,
   tarotReadings,
   type InsertTarotCreditPack,
@@ -308,6 +310,165 @@ export const SETTING_KEYS = {
 
 export const DEFAULT_PREMIUM_PRICE = "15";
 
+/* ============== ACCESO ANÓNIMO — LECTURA GRATUITA ============== */
+
+export const ANONYMOUS_VISITOR_RETENTION_MS = 365 * 24 * 60 * 60 * 1000;
+export const ANONYMOUS_FREE_READING_RATE_LIMIT = {
+  windowMs: 60 * 60 * 1000,
+  maxNewVisitors: 12,
+} as const;
+const FREE_READING_RESERVATION_MS = 10 * 60 * 1000;
+
+export async function getOrCreateAnonymousVisitor(visitorIdHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  const now = new Date();
+  await db.delete(tarotAnonymousVisitors).where(lt(tarotAnonymousVisitors.expiresAt, now));
+  const existing = await db.select().from(tarotAnonymousVisitors)
+    .where(eq(tarotAnonymousVisitors.visitorIdHash, visitorIdHash)).limit(1);
+  if (existing[0]) return existing[0];
+
+  try {
+    await db.insert(tarotAnonymousVisitors).values({
+      visitorIdHash,
+      expiresAt: new Date(now.getTime() + ANONYMOUS_VISITOR_RETENTION_MS),
+    });
+  } catch (error) {
+    const raced = await db.select().from(tarotAnonymousVisitors)
+      .where(eq(tarotAnonymousVisitors.visitorIdHash, visitorIdHash)).limit(1);
+    if (raced[0]) return raced[0];
+    throw error;
+  }
+  const created = await db.select().from(tarotAnonymousVisitors)
+    .where(eq(tarotAnonymousVisitors.visitorIdHash, visitorIdHash)).limit(1);
+  if (!created[0]) throw new Error("No se pudo crear la identidad anónima.");
+  return created[0];
+}
+
+export async function takeAnonymousFreeReadingRateLimitSlot(ipHash: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  const now = new Date();
+  const bucketStart = Math.floor(now.getTime() / ANONYMOUS_FREE_READING_RATE_LIMIT.windowMs) * ANONYMOUS_FREE_READING_RATE_LIMIT.windowMs;
+  const expiresAt = new Date(bucketStart + ANONYMOUS_FREE_READING_RATE_LIMIT.windowMs);
+  const bucketKey = `${ipHash}:${bucketStart}`;
+
+  await db.delete(tarotIpRateLimits).where(lt(tarotIpRateLimits.expiresAt, now));
+  const updated = await db.update(tarotIpRateLimits)
+    .set({ requestCount: sql`${tarotIpRateLimits.requestCount} + 1` })
+    .where(and(
+      eq(tarotIpRateLimits.bucketKey, bucketKey),
+      sql`${tarotIpRateLimits.requestCount} < ${ANONYMOUS_FREE_READING_RATE_LIMIT.maxNewVisitors}`,
+    ));
+  if (affectedRows(updated) > 0) return true;
+
+  const existing = await db.select().from(tarotIpRateLimits)
+    .where(eq(tarotIpRateLimits.bucketKey, bucketKey)).limit(1);
+  if (existing[0]) return false;
+
+  try {
+    await db.insert(tarotIpRateLimits).values({ bucketKey, ipHash, requestCount: 1, expiresAt });
+    return true;
+  } catch (error) {
+    const retry = await db.update(tarotIpRateLimits)
+      .set({ requestCount: sql`${tarotIpRateLimits.requestCount} + 1` })
+      .where(and(
+        eq(tarotIpRateLimits.bucketKey, bucketKey),
+        sql`${tarotIpRateLimits.requestCount} < ${ANONYMOUS_FREE_READING_RATE_LIMIT.maxNewVisitors}`,
+      ));
+    if (affectedRows(retry) > 0) return true;
+    return false;
+  }
+}
+
+export async function reserveAnonymousFreeReading(visitorIdHash: string, reservationToken: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  const now = new Date();
+  const staleBefore = new Date(now.getTime() - FREE_READING_RESERVATION_MS);
+  const result = await db.update(tarotAnonymousVisitors)
+    .set({ freeReadingReservationToken: reservationToken, freeReadingReservedAt: now })
+    .where(and(
+      eq(tarotAnonymousVisitors.visitorIdHash, visitorIdHash),
+      sql`${tarotAnonymousVisitors.freeReadingClaimedAt} IS NULL`,
+      sql`(${tarotAnonymousVisitors.freeReadingReservedAt} IS NULL OR ${tarotAnonymousVisitors.freeReadingReservedAt} < ${staleBefore})`,
+    ));
+  return affectedRows(result) > 0;
+}
+
+export async function consumeAnonymousFreeReading(visitorIdHash: string, reservationToken: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  const result = await db.update(tarotAnonymousVisitors)
+    .set({ freeReadingClaimedAt: new Date(), freeReadingReservationToken: null, freeReadingReservedAt: null })
+    .where(and(
+      eq(tarotAnonymousVisitors.visitorIdHash, visitorIdHash),
+      eq(tarotAnonymousVisitors.freeReadingReservationToken, reservationToken),
+      sql`${tarotAnonymousVisitors.freeReadingClaimedAt} IS NULL`,
+    ));
+  return affectedRows(result) > 0;
+}
+
+export async function releaseAnonymousFreeReading(visitorIdHash: string, reservationToken: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(tarotAnonymousVisitors)
+    .set({ freeReadingReservationToken: null, freeReadingReservedAt: null })
+    .where(and(
+      eq(tarotAnonymousVisitors.visitorIdHash, visitorIdHash),
+      eq(tarotAnonymousVisitors.freeReadingReservationToken, reservationToken),
+      sql`${tarotAnonymousVisitors.freeReadingClaimedAt} IS NULL`,
+    ));
+}
+
+export async function linkAnonymousVisitorToProfile(visitorIdHash: string, profileId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  await db.update(tarotAnonymousVisitors)
+    .set({ profileId })
+    .where(eq(tarotAnonymousVisitors.visitorIdHash, visitorIdHash));
+}
+
+export async function getTarotCreditsForAnonymousVisitor(visitorIdHash: string): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ credits: tarotProfiles.credits })
+    .from(tarotAnonymousVisitors)
+    .leftJoin(tarotProfiles, eq(tarotAnonymousVisitors.profileId, tarotProfiles.id))
+    .where(eq(tarotAnonymousVisitors.visitorIdHash, visitorIdHash)).limit(1);
+  return result[0]?.credits ?? 0;
+}
+
+export async function getTarotProfileIdForAnonymousVisitor(visitorIdHash: string): Promise<number | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const visitor = await db.select({ profileId: tarotAnonymousVisitors.profileId })
+    .from(tarotAnonymousVisitors)
+    .where(eq(tarotAnonymousVisitors.visitorIdHash, visitorIdHash)).limit(1);
+  return visitor[0]?.profileId ?? null;
+}
+
+export async function claimTarotCreditForAnonymousVisitor(visitorIdHash: string): Promise<number | null> {
+  const db = await getDb();
+  if (!db) throw new Error("Base de datos no disponible.");
+  const profileId = await getTarotProfileIdForAnonymousVisitor(visitorIdHash);
+  if (!profileId) return null;
+  const result = await db.update(tarotProfiles)
+    .set({ credits: sql`${tarotProfiles.credits} - 1` })
+    .where(and(eq(tarotProfiles.id, profileId), sql`${tarotProfiles.credits} > 0`));
+  return affectedRows(result) > 0 ? profileId : null;
+}
+
+export async function releaseTarotCreditForAnonymousVisitor(visitorIdHash: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  const profileId = await getTarotProfileIdForAnonymousVisitor(visitorIdHash);
+  if (!profileId) return;
+  await db.update(tarotProfiles)
+    .set({ credits: sql`${tarotProfiles.credits} + 1` })
+    .where(eq(tarotProfiles.id, profileId));
+}
+
 /* ============== NUEVO FUNNEL: EMAIL, LECTURAS Y CRÉDITOS ============== */
 
 function normalizeTarotEmail(email: string): string {
@@ -347,26 +508,17 @@ export async function createTarotReading(data: InsertTarotReading): Promise<void
   await db.insert(tarotReadings).values(data);
 }
 
+export async function deleteTarotReading(readingToken: string): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(tarotReadings).where(eq(tarotReadings.readingToken, readingToken));
+}
+
 export async function getTarotReading(readingToken: string) {
   const db = await getDb();
   if (!db) return undefined;
   const rows = await db.select().from(tarotReadings).where(eq(tarotReadings.readingToken, readingToken)).limit(1);
   return rows[0];
-}
-
-export async function unlockTarotFreeReading(params: { readingToken: string; email: string; marketingConsent: boolean }) {
-  const db = await getDb();
-  if (!db) throw new Error("Base de datos no disponible.");
-  const profile = await createOrUpdateTarotProfile(params.email, params.marketingConsent);
-  const result = await db.update(tarotProfiles)
-    .set({ freeReadingClaimedAt: new Date() })
-    .where(and(eq(tarotProfiles.id, profile.id), sql`${tarotProfiles.freeReadingClaimedAt} IS NULL`));
-  const claimed = affectedRows(result) > 0;
-  if (!claimed) return { claimed: false, profile };
-  await db.update(tarotReadings)
-    .set({ profileId: profile.id, status: "ready" })
-    .where(eq(tarotReadings.readingToken, params.readingToken));
-  return { claimed: true, profile: { ...profile, freeReadingClaimedAt: new Date() } };
 }
 
 export async function saveTarotReadingInterpretation(readingToken: string, interpretation: string) {

@@ -1,5 +1,8 @@
 import type { CookieOptions, Request } from "express";
 
+export const TAROT_ANONYMOUS_VISITOR_COOKIE = "tarot_visitor";
+export const TAROT_ANONYMOUS_VISITOR_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
+
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
 function isIpAddress(host: string) {
@@ -43,6 +46,19 @@ export function getSessionCookieOptions(
     httpOnly: true,
     path: "/",
     sameSite: "none",
+    secure: isSecureRequest(req),
+  };
+}
+
+/** Cookie host-only de primera parte para el derecho anónimo de lectura. */
+export function getAnonymousVisitorCookieOptions(
+  req: Request,
+): Pick<CookieOptions, "httpOnly" | "maxAge" | "path" | "sameSite" | "secure"> {
+  return {
+    httpOnly: true,
+    maxAge: TAROT_ANONYMOUS_VISITOR_MAX_AGE_MS,
+    path: "/",
+    sameSite: "lax",
     secure: isSecureRequest(req),
   };
 }

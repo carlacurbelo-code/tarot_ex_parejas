@@ -31,6 +31,8 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 
 async function startServer() {
   const app = express();
+  // El proxy de alojamiento entrega la IP del cliente en la primera posición confiable.
+  app.set("trust proxy", 1);
   const server = createServer(app);
   // Dodo exige el cuerpo exacto para verificar la firma Standard Webhooks.
   app.post("/api/dodo/webhook", express.raw({ type: "application/json" }), handleDodoWebhook);

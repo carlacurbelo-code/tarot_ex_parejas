@@ -23,17 +23,15 @@ import {
   consumeDodoPurchase,
   createDodoDeepReadingPurchase,
   createOrUpdateTarotProfile,
+  deleteTarotReading,
   createOrder,
   getDodoDeepReadingPurchase,
   getOrderByToken,
-  getTarotProfileByEmail,
   getTarotCreditPackStatus,
   getTarotReading,
-  claimTarotCredit,
   createTarotCreditPack,
   createTarotReading,
   saveTarotReadingInterpretation,
-  releaseTarotCredit,
   setTarotCreditPackCheckout,
   getSettingValue,
   listAllOrders,
@@ -45,7 +43,6 @@ import {
   setSettingValue,
   updateOrderPremiumQuestion,
   updateOrderReading,
-  unlockTarotFreeReading,
 } from "./db";
 import {
   DodoConfigurationError,
@@ -55,6 +52,18 @@ import {
   getDodoDeepReadingProduct,
 } from "./dodo";
 import { getSessionCookieOptions } from "./_core/cookies";
+import {
+  claimCurrentAnonymousCredit,
+  finalizeFreeReadingAccess,
+  getAnonymousCreditsForVisitorHash,
+  getCurrentAnonymousProfileId,
+  getCurrentAnonymousCredits,
+  linkCurrentAnonymousVisitorToProfile,
+  releaseCurrentAnonymousCredit,
+  releaseFreeReadingAccess,
+  reserveFreeReadingAccess,
+  resolveAnonymousVisitor,
+} from "./anonymousAccess";
 import { invokeLLM } from "./_core/llm";
 import { notifyOwner } from "./_core/notification";
 import { storagePut } from "./storage";
@@ -414,67 +423,88 @@ Pedido #${order.id}. Ingresá al panel admin para subir el audio.`,
       }
     }),
 
-    /** Crea la tirada gratuita de tres cartas; la interpretación se desbloquea con email. */
+    /** Estado de acceso de la cookie anónima; no contiene datos personales. */
+    getFreeAccessStatus: publicProcedure.query(async ({ ctx }) => {
+      const { visitor, visitorIdHash } = await resolveAnonymousVisitor(ctx.req, ctx.res);
+      const credits = await getAnonymousCreditsForVisitorHash(visitorIdHash);
+      return { freeAvailable: !visitor.freeReadingClaimedAt, credits };
+    }),
+
+    /** Entrega una lectura gratuita completa de tres cartas una sola vez por identidad anónima. */
     createFreeReading: publicProcedure
       .input(z.object({
         situation: z.string().min(10).max(800),
         context: z.enum(["love", "money_work"]),
         cards: z.array(z.object({ id: z.string(), orientation: z.enum(["upright", "reversed"]) })).length(3),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         rejectRestrictedQuestion(input.situation);
         const cards = normalizeSelection(input.cards);
         if (!hasThreeDistinctCards(cards)) throw new TRPCError({ code: "BAD_REQUEST", message: "Cartas inválidas o repetidas." });
         const readingToken = nanoid(32);
-        await createTarotReading({
-          readingToken,
-          question: input.situation.trim(),
-          context: input.context,
-          selectedCards: JSON.stringify(cards.map(card => ({ id: card.id, orientation: card.orientation }))),
-          kind: "free",
-          status: "pending_email",
-        });
-        return { readingToken, cards: cards.map(card => ({ id: card.id, name: card.name, emoji: card.emoji, imageKey: card.imageKey, orientation: card.orientation })) };
-      }),
+        const access = await reserveFreeReadingAccess(ctx.req, ctx.res, readingToken);
+        if (!access.allowed) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: access.reason === "rate_limited"
+              ? "No pudimos iniciar otra lectura desde esta conexión por ahora. Probá nuevamente más tarde."
+              : "Tu primera lectura ya está disponible. Si querés seguir, podés continuar con nuevas lecturas.",
+          });
+        }
 
-    /** Desbloquea una tirada gratuita una sola vez por email y genera su interpretación completa. */
-    unlockFreeReading: publicProcedure
-      .input(z.object({ readingToken: z.string().min(20).max(64), email: z.string().email(), marketingConsent: z.boolean().default(false) }))
-      .mutation(async ({ input }) => {
-        const reading = await getTarotReading(input.readingToken);
-        if (!reading) throw new TRPCError({ code: "NOT_FOUND", message: "No encontramos esta tirada." });
-        if (reading.kind !== "free") throw new TRPCError({ code: "BAD_REQUEST", message: "Esta tirada no es gratuita." });
-        const unlocked = await unlockTarotFreeReading({ readingToken: input.readingToken, email: input.email, marketingConsent: input.marketingConsent });
-        if (!unlocked.claimed) throw new TRPCError({ code: "CONFLICT", message: "Este email ya utilizó la lectura gratuita." });
-        const cards = parseStoredSelection(JSON.parse(reading.selectedCards));
-        const response = await invokeLLM({
-          messages: [
-            { role: "system", content: reading.context === "money_work" ? MONEY_WORK_SYSTEM_PROMPT : SYSTEM_PROMPT },
-            { role: "user", content: buildReadingUserMessage(reading.question, cards, reading.context as ReadingContext) },
-          ],
-        });
-        const interpretation = response.choices?.[0]?.message?.content;
-        if (typeof interpretation !== "string" || !interpretation.trim()) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No pude generar la interpretación." });
-        await saveTarotReadingInterpretation(input.readingToken, interpretation.trim());
-        return { readingToken: input.readingToken, reading: interpretation.trim(), credits: unlocked.profile.credits, cards: cards.map(card => ({ id: card.id, name: card.name, emoji: card.emoji, imageKey: card.imageKey, orientation: card.orientation })) };
+        try {
+          await createTarotReading({
+            readingToken,
+            anonymousVisitorId: access.visitor.id,
+            question: input.situation.trim(),
+            context: input.context,
+            selectedCards: JSON.stringify(cards.map(card => ({ id: card.id, orientation: card.orientation }))),
+            kind: "free",
+            status: "generating",
+          });
+          const response = await invokeLLM({
+            messages: [
+              { role: "system", content: input.context === "money_work" ? MONEY_WORK_SYSTEM_PROMPT : SYSTEM_PROMPT },
+              { role: "user", content: buildReadingUserMessage(input.situation.trim(), cards, input.context) },
+            ],
+          });
+          const interpretation = response.choices?.[0]?.message?.content;
+          if (typeof interpretation !== "string" || !interpretation.trim()) {
+            throw new Error("Gemini no devolvió una lectura.");
+          }
+          await saveTarotReadingInterpretation(readingToken, interpretation.trim());
+          const consumed = await finalizeFreeReadingAccess(access.visitorIdHash, readingToken);
+          if (!consumed) throw new Error("No se pudo registrar la lectura gratuita.");
+          const credits = await getAnonymousCreditsForVisitorHash(access.visitorIdHash);
+          return {
+            readingToken,
+            reading: interpretation.trim(),
+            credits,
+            cards: cards.map(card => ({ id: card.id, name: card.name, emoji: card.emoji, imageKey: card.imageKey, orientation: card.orientation })),
+          };
+        } catch (error) {
+          await releaseFreeReadingAccess(access.visitorIdHash, readingToken);
+          console.error("[LLM] Error generando lectura gratuita:", error);
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No pude completar la lectura en este momento. Volvé a intentarlo en unos segundos." });
+        }
       }),
 
     getCreditBalance: publicProcedure
-      .input(z.object({ email: z.string().email() }))
-      .query(async ({ input }) => ({ credits: (await getTarotProfileByEmail(input.email))?.credits ?? 0 })),
+      .query(async ({ ctx }) => ({ credits: await getCurrentAnonymousCredits(ctx.req, ctx.res) })),
 
     getCreditPackStatus: publicProcedure
       .input(z.object({ packToken: z.string().min(20).max(64) }))
       .query(async ({ input }) => {
         const result = await getTarotCreditPackStatus(input.packToken);
         if (!result) throw new TRPCError({ code: "NOT_FOUND", message: "No encontramos este pack." });
-        return { status: result.pack.status, email: result.profile?.email ?? result.pack.email, credits: result.profile?.credits ?? 0 };
+        return { status: result.pack.status, credits: result.profile?.credits ?? 0 };
       }),
 
     createCreditPackCheckout: publicProcedure
-      .input(z.object({ email: z.string().email(), origin: z.string().url() }))
-      .mutation(async ({ input }) => {
-        const profile = await createOrUpdateTarotProfile(input.email, false);
+      .input(z.object({ email: z.string().email(), marketingConsent: z.boolean().default(false), origin: z.string().url() }))
+      .mutation(async ({ input, ctx }) => {
+        const profile = await createOrUpdateTarotProfile(input.email, input.marketingConsent);
+        await linkCurrentAnonymousVisitorToProfile(ctx.req, ctx.res, profile.id);
         const product = await getDodoCreditPackProduct();
         const packToken = nanoid(32);
         await createTarotCreditPack({ packToken, profileId: profile.id, email: input.email.trim().toLowerCase(), dodoProductId: product.productId, dodoBrandId: product.brandId, creditsGranted: 3, status: "checkout_created" });
@@ -485,20 +515,46 @@ Pedido #${order.id}. Ingresá al panel admin para subir el audio.`,
       }),
 
     submitCreditReading: publicProcedure
-      .input(z.object({ email: z.string().email(), question: z.string().min(10).max(800), context: z.enum(["love", "money_work"]), cards: z.array(z.object({ id: z.string(), orientation: z.enum(["upright", "reversed"]) })).length(3) }))
-      .mutation(async ({ input }) => {
+      .input(z.object({ readingToken: z.string().min(20).max(64), question: z.string().min(10).max(800), context: z.enum(["love", "money_work"]), cards: z.array(z.object({ id: z.string(), orientation: z.enum(["upright", "reversed"]) })).length(3) }))
+      .mutation(async ({ input, ctx }) => {
         rejectRestrictedQuestion(input.question);
-        const claimed = await claimTarotCredit(input.email);
-        if (!claimed) throw new TRPCError({ code: "FORBIDDEN", message: "No tenés créditos disponibles. Comprá otro pack para continuar." });
         const cards = normalizeSelection(input.cards);
-        if (!hasThreeDistinctCards(cards)) { await releaseTarotCredit(input.email); throw new TRPCError({ code: "BAD_REQUEST", message: "Cartas inválidas o repetidas." }); }
+        if (!hasThreeDistinctCards(cards)) throw new TRPCError({ code: "BAD_REQUEST", message: "Cartas inválidas o repetidas." });
+        const profileId = await getCurrentAnonymousProfileId(ctx.req, ctx.res);
+        if (!profileId) throw new TRPCError({ code: "FORBIDDEN", message: "No tenés créditos disponibles. Comprá otro pack para continuar." });
+
+        const existing = await getTarotReading(input.readingToken);
+        if (existing) {
+          if (existing.kind !== "credit" || existing.profileId !== profileId) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "No pudimos reanudar esta lectura." });
+          }
+          if (existing.status === "ready" && existing.interpretation) {
+            const storedCards = parseStoredSelection(JSON.parse(existing.selectedCards));
+            return { reading: existing.interpretation, credits: await getCurrentAnonymousCredits(ctx.req, ctx.res), cards: storedCards.map(card => ({ id: card.id, name: card.name, emoji: card.emoji, imageKey: card.imageKey, orientation: card.orientation })) };
+          }
+          throw new TRPCError({ code: "CONFLICT", message: "Esta lectura se está procesando. Esperá un momento antes de reintentar." });
+        }
+
+        const claimed = await claimCurrentAnonymousCredit(ctx.req, ctx.res);
+        if (!claimed.claimed) throw new TRPCError({ code: "FORBIDDEN", message: "No tenés créditos disponibles. Comprá otro pack para continuar." });
         try {
+          await createTarotReading({
+            readingToken: input.readingToken,
+            profileId,
+            question: input.question.trim(),
+            context: input.context,
+            selectedCards: JSON.stringify(cards.map(card => ({ id: card.id, orientation: card.orientation }))),
+            kind: "credit",
+            status: "generating",
+          });
           const response = await invokeLLM({ messages: [{ role: "system", content: input.context === "money_work" ? MONEY_WORK_SYSTEM_PROMPT : SYSTEM_PROMPT }, { role: "user", content: buildReadingUserMessage(input.question.trim(), cards, input.context) }] });
           const interpretation = response.choices?.[0]?.message?.content;
           if (typeof interpretation !== "string" || !interpretation.trim()) throw new Error("Gemini no devolvió una lectura.");
-          return { reading: interpretation.trim(), credits: ((await getTarotProfileByEmail(input.email))?.credits ?? 0), cards: cards.map(card => ({ id: card.id, name: card.name, emoji: card.emoji, imageKey: card.imageKey, orientation: card.orientation })) };
+          await saveTarotReadingInterpretation(input.readingToken, interpretation.trim());
+          return { reading: interpretation.trim(), credits: await getCurrentAnonymousCredits(ctx.req, ctx.res), cards: cards.map(card => ({ id: card.id, name: card.name, emoji: card.emoji, imageKey: card.imageKey, orientation: card.orientation })) };
         } catch (error) {
-          await releaseTarotCredit(input.email);
+          await deleteTarotReading(input.readingToken);
+          await releaseCurrentAnonymousCredit(ctx.req, ctx.res);
           throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No pude generar la lectura. Tu crédito fue restaurado." });
         }
       }),

@@ -1,0 +1,1 @@
+ALTER TABLE `tarotReadings` ADD `anonymousVisitorId` int;

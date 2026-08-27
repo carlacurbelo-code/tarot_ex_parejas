@@ -2,9 +2,9 @@
 
 ## Funnel
 
-La usuaria elige una vertical, escribe una pregunta y selecciona tres cartas del mazo completo de 78. Las tres cartas y sus orientaciones se muestran antes de pedir el email. El email es obligatorio para desbloquear la interpretación completa. El consentimiento de marketing se guarda en un checkbox independiente, opcional y desmarcado por defecto.
+La usuaria elige una vertical, escribe una pregunta, selecciona tres cartas del mazo completo de 78 y recibe la interpretación completa sin introducir email. Una cookie anónima de primera parte limita el beneficio a una lectura, con una señal de rate limiting temporal por IP hash ante automatización evidente. El detalle operativo está documentado en `ACCESO_GRATUITO_ANONIMO.md`.
 
-Cada email puede reclamar una única lectura gratuita. La identidad no utiliza cuenta, contraseña ni login: se normaliza a minúsculas y se persiste en `tarotProfiles`.
+El email se solicita solamente al comprar créditos. No se crean cuentas, contraseñas ni logins: el perfil por email persiste para la compra y la cookie anónima enlaza los créditos a ese navegador.
 
 ## Créditos
 
@@ -28,4 +28,4 @@ El adapter `server/_core/llm.ts` utiliza `TAROT_LLM_MODEL`, cuyo valor predeterm
 
 ## Privacidad
 
-El footer informa que el email se usa para identificar la lectura gratuita, evitar usos repetidos y asociar créditos comprados. El marketing es opcional, separado del acceso y revocable. Este copy es informativo; antes de operar a escala debe revisarse con asesoría legal aplicable a las jurisdicciones objetivo.
+El footer informa el uso de la cookie anónima de primera parte, el rate limiting temporal por IP hash y que el email se usa sólo para asociar créditos comprados. El marketing es opcional, separado de la compra y revocable. Este copy es informativo; antes de operar a escala debe revisarse con asesoría legal aplicable a las jurisdicciones objetivo.
