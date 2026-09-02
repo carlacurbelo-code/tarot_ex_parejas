@@ -319,3 +319,7 @@
 - [x] Confirmar el mapping original versionado y retirar sólo las referencias nuevas.
 - [x] Deshacer cualquier ajuste de tamaño no solicitado en esta corrección.
 - [x] Validar exclusivamente el mapping restaurado y detener el trabajo.
+
+## Ajuste puntual — aclaración del precio del pack
+- [x] Añadir únicamente «por las 3 lecturas» debajo de US$ 6,99 en la pantalla de compra.
+- [x] Verificar TypeScript, tests y build; publicar sin modificar otros textos, componentes, estilos ni layout.
