@@ -308,3 +308,14 @@
 - [x] Retirar el bloque explicativo de cookie y rate limiting visible en el footer.
 - [x] Añadir un enlace discreto a una página de privacidad con la información completa.
 - [x] Verificar el enlace en móvil, ejecutar validaciones y publicar el ajuste.
+
+## Restauración del mazo original — cambio puntual
+- [x] Restaurar las rutas originales PNG versionadas antes del mazo personalizado y retirar los mappings piloto/WebP.
+- [x] Mantener el catálogo completo de 78 cartas y la lógica de selección, barajado, invertidas e interpretación sin cambios.
+- [ ] Aumentar moderadamente el tamaño visual de selección y resultado en móvil sin scroll horizontal ni recortes.
+- [x] Verificar visualmente en móvil, ejecutar TypeScript, tests y build, y publicar sólo este ajuste.
+
+## Restauración exclusiva de imágenes originales
+- [x] Confirmar el mapping original versionado y retirar sólo las referencias nuevas.
+- [x] Deshacer cualquier ajuste de tamaño no solicitado en esta corrección.
+- [x] Validar exclusivamente el mapping restaurado y detener el trabajo.
